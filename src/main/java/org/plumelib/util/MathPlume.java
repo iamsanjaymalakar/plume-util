@@ -10,6 +10,7 @@ import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyUpperBound;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signedness.qual.Unsigned;
@@ -1463,7 +1464,7 @@ public final class MathPlume {
     }
 
     @Override
-    public Integer next(@GuardSatisfied MissingNumbersIteratorInt this) {
+    public @NotOwning Integer next(@GuardSatisfied MissingNumbersIteratorInt this) {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
@@ -1804,7 +1805,7 @@ public final class MathPlume {
     }
 
     @Override
-    public Long next(@GuardSatisfied MissingNumbersIteratorLong this) {
+    public @NotOwning Long next(@GuardSatisfied MissingNumbersIteratorLong this) {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }

@@ -1,6 +1,7 @@
 package org.plumelib.util;
 
 import java.util.LinkedHashSet;
+import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.signedness.qual.UnknownSignedness;
 
@@ -57,7 +58,7 @@ public final class MostlySingletonSet<T extends Object> extends AbstractMostlySi
   }
 
   /** Switch the representation of this from SINGLETON to ANY. */
-  private void makeNonSingleton() {
+  private void makeNonSingleton(@NotOwningCollection MostlySingletonSet<T> this) {
     state = State.ANY;
     set = new LinkedHashSet<>();
     assert value != null : "@AssumeAssertion(nullness): SINGLETON => value != null";

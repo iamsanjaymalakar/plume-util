@@ -17,6 +17,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
+import org.checkerframework.checker.collectionownership.qual.PolyOwningCollection;
 import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
@@ -24,6 +26,8 @@ import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.SameLen;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
+import org.checkerframework.checker.mustcall.qual.Owning;
 import org.checkerframework.checker.nullness.qual.EnsuresKeyFor;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -252,7 +256,8 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     "keyfor:contracts.postcondition" // insertion in keys array suffices
   })
   @EnsuresKeyFor(value = "#2", map = "this")
-  private void put(@GTENegativeOne int index, K key, V value) {
+  private void put(
+      @NotOwningCollection ArrayMap<K, V> this, @GTENegativeOne int index, K key, V value) {
     if (index == -1) {
       // Add a new mapping.
       grow();
@@ -273,7 +278,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    * @return the capacity of this map
    */
   @Pure
-  private int capacity() {
+  private int capacity(@NotOwningCollection ArrayMap<K, V> this) {
     if (keys == null) {
       return 0;
     } else {
@@ -288,7 +293,8 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    * @param method the method that will use the index
    */
   @SideEffectFree
-  private void assertIndexInBounds(int index, String method) {
+  private void assertIndexInBounds(
+      @NotOwningCollection ArrayMap<K, V> this, int index, String method) {
     if (index < 0 || index >= size) {
       throw new IndexOutOfBoundsException(
           method + "(" + index + ",...) called on ArrayMap of size " + size);
@@ -297,7 +303,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
 
   /** Increases the capacity of the arrays, if necessary. */
   @SuppressWarnings({"unchecked"}) // generic array cast
-  private void grow() {
+  private void grow(@NotOwningCollection ArrayMap<K, V> this) {
     int capacity = capacity();
     if (capacity == 0) {
       this.keys = (K[]) new Object[4];
@@ -315,7 +321,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    * @param index the index of the mapping to remove
    * @return true if this map was modified
    */
-  private boolean removeIndex(@GTENegativeOne int index) {
+  private boolean removeIndex(@NotOwningCollection ArrayMap<K, V> this, @GTENegativeOne int index) {
     if (index == -1) {
       return false;
     }
@@ -349,7 +355,9 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    * @return the index of the given key, or -1 if it does not appear
    */
   @Pure
-  private int indexOfKey(@GuardSatisfied @Nullable @UnknownSignedness Object key) {
+  private int indexOfKey(
+      @NotOwningCollection ArrayMap<K, V> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object key) {
     if (keys == null) {
       return -1;
     }
@@ -369,7 +377,9 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    * @return the index of the given value, or -1 if it does not appear
    */
   @Pure
-  private int indexOfValue(@GuardSatisfied @Nullable @UnknownSignedness Object value) {
+  private int indexOfValue(
+      @NotOwningCollection ArrayMap<K, V> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object value) {
     if (keys == null) {
       return -1;
     }
@@ -384,13 +394,17 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
   @Pure
   @Override
   @SuppressWarnings("keyfor:contracts.conditional.postcondition") // delegate test to `keys` field
-  public boolean containsKey(@GuardSatisfied @Nullable @UnknownSignedness Object key) {
+  public boolean containsKey(
+      @NotOwningCollection ArrayMap<K, V> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object key) {
     return indexOfKey(key) != -1;
   }
 
   @Pure
   @Override
-  public boolean containsValue(@GuardSatisfied @Nullable @UnknownSignedness Object value) {
+  public boolean containsValue(
+      @NotOwningCollection ArrayMap<K, V> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object value) {
     return indexOfValue(value) != -1;
   }
 
@@ -403,6 +417,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    */
   @Pure
   private boolean containsEntry(
+      @NotOwningCollection ArrayMap<K, V> this,
       @GuardSatisfied @Nullable @UnknownSignedness Object key,
       @GuardSatisfied @Nullable @UnknownSignedness Object value) {
     int index = indexOfKey(key);
@@ -411,7 +426,9 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
 
   @Pure
   @Override
-  public @Nullable V get(@GuardSatisfied @Nullable @UnknownSignedness Object key) {
+  public @NotOwning @Nullable V get(
+      @NotOwningCollection ArrayMap<K, V> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object key) {
     int index = indexOfKey(key);
     return getOrNull(index);
   }
@@ -425,7 +442,8 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
   @SuppressWarnings(
       "allcheckers:purity.not.deterministic.call") // assertIndexInBounds is side-effect-free
   @Pure
-  private @Nullable V getOrNull(@GTENegativeOne int index) {
+  private @NotOwning @Nullable V getOrNull(
+      @NotOwningCollection ArrayMap<K, V> this, @GTENegativeOne int index) {
     if (index == -1) {
       return null;
     }
@@ -436,7 +454,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
   // Modification Operations
 
   @Override
-  public @Nullable V put(K key, V value) {
+  public @NotOwning @Nullable V put(@NotOwningCollection ArrayMap<K, V> this, K key, V value) {
     int index = indexOfKey(key);
     V currentValue = getOrNull(index);
     put(index, key, value);
@@ -444,7 +462,9 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
   }
 
   @Override
-  public @Nullable V remove(@GuardSatisfied @Nullable @UnknownSignedness Object key) {
+  public @Owning @Nullable V remove(
+      @NotOwningCollection ArrayMap<K, V> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object key) {
     int index = indexOfKey(key);
     // cannot use removeIndex because it has the wrong return type
     if (index == -1) {
@@ -510,7 +530,8 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     }
 
     @Override
-    public final Iterator<@KeyFor("this") K> iterator() {
+    public final @PolyOwningCollection Iterator<@KeyFor("this") K> iterator(
+        @PolyOwningCollection KeySet this) {
       return new KeyIterator();
     }
 
@@ -598,7 +619,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     }
 
     @Override
-    public final Iterator<V> iterator() {
+    public final @PolyOwningCollection Iterator<V> iterator(@PolyOwningCollection Values this) {
       return new ValueIterator();
     }
 
@@ -679,7 +700,8 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     }
 
     @Override
-    public final Iterator<Map.Entry<@KeyFor("ArrayMap.this") K, V>> iterator() {
+    public final @PolyOwningCollection Iterator<Map.Entry<@KeyFor("ArrayMap.this") K, V>> iterator(
+        @PolyOwningCollection EntrySet this) {
       return new EntryIterator();
     }
 
@@ -765,7 +787,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     }
 
     @Override
-    public abstract T next();
+    public abstract @NotOwning T next();
 
     /** Removes the previously-returned element. */
     @Override
@@ -794,7 +816,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     KeyIterator() {}
 
     @Override
-    public final @KeyFor("ArrayMap.this") K next() {
+    public final @NotOwning @KeyFor("ArrayMap.this") K next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
@@ -810,7 +832,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     ValueIterator() {}
 
     @Override
-    public final V next() {
+    public final @NotOwning V next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
@@ -826,7 +848,7 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
     EntryIterator() {}
 
     @Override
-    public final Map.Entry<K, V> next() {
+    public final @NotOwning Map.Entry<K, V> next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
@@ -873,12 +895,12 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
 
     @Pure
     @Override
-    public V getValue() {
+    public @NotOwning V getValue() {
       return values[index];
     }
 
     @Override
-    public V setValue(V value) {
+    public @NotOwning V setValue(V value) {
       // Do not increment sizeModificationCount.
       values[index] = value;
       return value;

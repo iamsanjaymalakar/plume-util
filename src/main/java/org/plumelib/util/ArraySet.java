@@ -12,12 +12,15 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
+import org.checkerframework.checker.collectionownership.qual.PolyOwningCollection;
 import org.checkerframework.checker.index.qual.GTENegativeOne;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -227,7 +230,7 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
    * @return true if the method modified this set
    */
   @SuppressWarnings({"InvalidParam"}) // Error Prone stupidly warns about field `values`
-  private boolean add(@GTENegativeOne int index, E value) {
+  private boolean add(@NotOwningCollection ArraySet<E> this, @GTENegativeOne int index, E value) {
     if (index != -1) {
       return false;
     }
@@ -245,7 +248,7 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
   /** Increases the capacity of the array. */
   @SuppressWarnings({"unchecked"}) // generic array cast
   @EnsuresNonNull("values")
-  private void grow() {
+  private void grow(@NotOwningCollection ArraySet<E> this) {
     if (values == null) {
       this.values = (E[]) new Object[4];
     } else {
@@ -260,7 +263,7 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
    * @param index the index of the element to remove
    * @return true if this set was modified
    */
-  private boolean removeIndex(@GTENegativeOne int index) {
+  private boolean removeIndex(@NotOwningCollection ArraySet<E> this, @GTENegativeOne int index) {
     if (index == -1) {
       return false;
     }
@@ -299,7 +302,9 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
    * @return the index of the given value, or -1 if it does not appear
    */
   @Pure
-  private int indexOf(@GuardSatisfied @Nullable @UnknownSignedness Object value) {
+  private int indexOf(
+      @NotOwningCollection ArraySet<E> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object value) {
     if (values == null) {
       return -1;
     }
@@ -313,20 +318,25 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
 
   @Pure
   @Override
-  public boolean contains(@GuardSatisfied @Nullable @UnknownSignedness Object value) {
+  public boolean contains(
+      @NotOwningCollection ArraySet<E> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object value) {
     return indexOf(value) != -1;
   }
 
   // Modification Operations
 
   @Override
-  public boolean add(E value) {
+  public boolean add(@NotOwningCollection ArraySet<E> this, E value) {
     int index = indexOf(value);
     return add(index, value);
   }
 
   @Override
-  public boolean remove(@GuardSatisfied @Nullable @UnknownSignedness Object value) {
+  @SuppressWarnings("nullness:contracts.conditional.postcondition")
+  public boolean remove(
+      @NotOwningCollection ArraySet<E> this,
+      @GuardSatisfied @Nullable @UnknownSignedness Object value) {
     int index = indexOf(value);
     return removeIndex(index);
   }
@@ -363,7 +373,7 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
   // iterators
 
   @Override
-  public Iterator<E> iterator() {
+  public @PolyOwningCollection Iterator<E> iterator(@PolyOwningCollection ArraySet<E> this) {
     return new ArraySetIterator();
   }
 
@@ -404,7 +414,7 @@ public class ArraySet<E extends @UnknownSignedness @Nullable Object> extends Abs
       "cast", // cast to (E) because it isn't outside the range
       "nullness:return" // is in range
     })
-    public final E next() {
+    public final @NotOwning E next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }

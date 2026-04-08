@@ -28,10 +28,12 @@ import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import org.checkerframework.checker.collectionownership.qual.PolyOwningCollection;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -1452,6 +1454,7 @@ public final class CollectionsPlume {
       private AtomicBoolean used = new AtomicBoolean();
 
       @Override
+      @SuppressWarnings("collectionownership:override.receiver") // can't annotate due to anonymous class
       public Iterator<T> iterator() {
         if (used.getAndSet(true)) {
           throw new Error("Call iterator() just once");
@@ -1490,7 +1493,7 @@ public final class CollectionsPlume {
 
     @SuppressWarnings("JdkObsolete")
     @Override
-    public T next(@GuardSatisfied EnumerationIterator<T> this) {
+    public @NotOwning T next(@GuardSatisfied EnumerationIterator<T> this) {
       return e.nextElement();
     }
 
@@ -1576,7 +1579,7 @@ public final class CollectionsPlume {
     }
 
     @Override
-    public T next(@GuardSatisfied IteratorPlusOne<T> this) {
+    public @NotOwning T next(@GuardSatisfied IteratorPlusOne<T> this) {
       if (itor.hasNext()) {
         return itor.next();
       } else if (hasPlusOne) {
@@ -1640,7 +1643,7 @@ public final class CollectionsPlume {
     }
 
     @Override
-    public T next(@GuardSatisfied MergedIterator2<T> this) {
+    public @NotOwning T next(@GuardSatisfied MergedIterator2<T> this) {
       if (itor1.hasNext()) {
         return itor1.next();
       } else if (itor2.hasNext()) {
@@ -1719,7 +1722,7 @@ public final class CollectionsPlume {
     }
 
     @Override
-    public T next(@GuardSatisfied MergedIterator<T> this) {
+    public @NotOwning T next(@GuardSatisfied MergedIterator<T> this) {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
@@ -1798,7 +1801,7 @@ public final class CollectionsPlume {
     }
 
     @Override
-    public T next(@GuardSatisfied FilteredIterator<T> this) {
+    public @NotOwning T next(@GuardSatisfied FilteredIterator<T> this) {
       if (hasNext()) {
         currentValid = false;
         @SuppressWarnings("interning")
@@ -1876,7 +1879,7 @@ public final class CollectionsPlume {
     }
 
     @Override
-    public T next(@GuardSatisfied RemoveFirstAndLastIterator<T> this) {
+    public @NotOwning T next(@GuardSatisfied RemoveFirstAndLastIterator<T> this) {
       if (!itor.hasNext()) {
         throw new NoSuchElementException();
       }

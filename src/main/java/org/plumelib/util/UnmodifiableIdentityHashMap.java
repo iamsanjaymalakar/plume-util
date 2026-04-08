@@ -8,8 +8,10 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signedness.qual.UnknownSignedness;
@@ -72,8 +74,8 @@ public final class UnmodifiableIdentityHashMap<K, V> extends IdentityHashMap<K, 
   }
 
   @Override
-  public @Nullable V get(
-      @GuardSatisfied UnmodifiableIdentityHashMap<K, V> this,
+  public @NotOwning @Nullable V get(
+      @GuardSatisfied @NotOwningCollection UnmodifiableIdentityHashMap<K, V> this,
       @GuardSatisfied @Nullable @UnknownSignedness Object key) {
     return map.get(key);
   }
@@ -93,7 +95,8 @@ public final class UnmodifiableIdentityHashMap<K, V> extends IdentityHashMap<K, 
   }
 
   @Override
-  public @Nullable V put(@GuardSatisfied UnmodifiableIdentityHashMap<K, V> this, K key, V value) {
+  public @NotOwning @Nullable V put(
+      @GuardSatisfied @NotOwningCollection UnmodifiableIdentityHashMap<K, V> this, K key, V value) {
     throw new UnsupportedOperationException();
   }
 

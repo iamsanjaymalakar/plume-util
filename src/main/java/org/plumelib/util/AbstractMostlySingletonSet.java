@@ -5,8 +5,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.checkerframework.checker.collectionownership.qual.PolyOwningCollection;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
@@ -104,7 +106,8 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
     "lock:override.receiver" // cannot specify the anonymous receiver type
   })
   @SideEffectFree
-  public Iterator<T> iterator() {
+  public @PolyOwningCollection Iterator<T> iterator(
+      @PolyOwningCollection AbstractMostlySingletonSet<T> this) {
     return switch (state) {
       case EMPTY -> Collections.emptyIterator();
       case SINGLETON ->
@@ -118,7 +121,7 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
             }
 
             @Override
-            public T next(/*@GuardedBy Iterator<T> this*/ ) {
+            public @NotOwning T next(/*@GuardedBy Iterator<T> this*/ ) {
               if (hasNext) {
                 hasNext = false;
                 assert value != null : "@AssumeAssertion(nullness): previous add is non-null";

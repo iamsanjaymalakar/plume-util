@@ -2,6 +2,7 @@ package org.plumelib.util;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.signedness.qual.UnknownSignedness;
@@ -58,7 +59,8 @@ public final class IdentityMostlySingletonSet<T extends Object>
   }
 
   /** Switch the representation of this from SINGLETON to ANY. */
-  private void makeNonSingleton(@GuardSatisfied IdentityMostlySingletonSet<T> this) {
+  private void makeNonSingleton(
+      @GuardSatisfied @NotOwningCollection IdentityMostlySingletonSet<T> this) {
     state = State.ANY;
     set = Collections.newSetFromMap(new IdentityHashMap<>(4));
     assert value != null : "@AssumeAssertion(nullness): previous add is non-null";
