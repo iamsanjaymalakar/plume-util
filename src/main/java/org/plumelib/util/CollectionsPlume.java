@@ -1447,6 +1447,7 @@ public final class CollectionsPlume {
    * @param <T> the element type
    * @return source, converted to Iterable
    */
+  @SuppressWarnings("NotJavadoc") // Error prone forbids Javadoc comments on anonymous classes.
   public static <T> Iterable<T> iteratorToIterable(final Iterator<T> source) {
     Objects.requireNonNull(source);
     return new Iterable<>() {
