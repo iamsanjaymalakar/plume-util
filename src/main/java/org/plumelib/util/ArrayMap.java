@@ -439,8 +439,6 @@ public class ArrayMap<K extends @UnknownSignedness Object, V extends @UnknownSig
    * @param index the index
    * @return the value at the given index, or null if the index is -1
    */
-  @SuppressWarnings(
-      "allcheckers:purity.not.deterministic.call") // assertIndexInBounds is side-effect-free
   @Pure
   private @NotOwning @Nullable V getOrNull(
       @NotOwningCollection ArrayMap<K, V> this, @GTENegativeOne int index) {
