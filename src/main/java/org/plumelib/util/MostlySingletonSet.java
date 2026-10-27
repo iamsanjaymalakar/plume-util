@@ -3,7 +3,11 @@ package org.plumelib.util;
 import java.util.LinkedHashSet;
 import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.modifiability.qual.Growable;
+import org.checkerframework.checker.modifiability.qual.IteratorPolyMod;
+import org.checkerframework.checker.modifiability.qual.Unshrinkable;
 import org.checkerframework.checker.signedness.qual.UnknownSignedness;
+import org.checkerframework.dataflow.qual.SideEffectsOnly;
 
 /**
  * A set that is more efficient than HashSet for 0 and 1 elements. Uses {@code Objects.equals} for
@@ -18,7 +22,7 @@ import org.checkerframework.checker.signedness.qual.UnknownSignedness;
 public final class MostlySingletonSet<T extends Object> extends AbstractMostlySingletonSet<T> {
 
   /** Create a MostlySingletonSet. */
-  public MostlySingletonSet() {
+  public @IteratorPolyMod @Growable @Unshrinkable MostlySingletonSet() {
     super(State.EMPTY);
   }
 
@@ -27,13 +31,13 @@ public final class MostlySingletonSet<T extends Object> extends AbstractMostlySi
    *
    * @param value the single element of the set
    */
-  public MostlySingletonSet(T value) {
+  public @IteratorPolyMod @Growable @Unshrinkable MostlySingletonSet(T value) {
     super(State.SINGLETON, value);
   }
 
   @Override
   @SuppressWarnings("lock:method.invocation") // #979?
-  public boolean add(@GuardSatisfied MostlySingletonSet<T> this, T e) {
+  public boolean add(@Growable @GuardSatisfied MostlySingletonSet<T> this, T e) {
     return switch (state) {
       case EMPTY -> {
         state = State.SINGLETON;
@@ -58,6 +62,7 @@ public final class MostlySingletonSet<T extends Object> extends AbstractMostlySi
   }
 
   /** Switch the representation of this from SINGLETON to ANY. */
+  @SideEffectsOnly("this")
   private void makeNonSingleton(@NotOwningCollection MostlySingletonSet<T> this) {
     state = State.ANY;
     set = new LinkedHashSet<>();

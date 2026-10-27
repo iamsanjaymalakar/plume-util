@@ -2,23 +2,30 @@
 
 package org.plumelib.util;
 
+import java.io.File;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Locale;
+import java.util.regex.Pattern;
+import org.checkerframework.checker.modifiability.qual.Modifiable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
-/** Utility methods relating to the JVM runtime system: sleep and garbage collection. */
-public final class SystemPlume {
+/**
+ * Utility methods relating to the JVM runtime system: system properties, sleep, garbage collection,
+ * and locating executables on the PATH.
+ */
+public final class SystemP {
 
   /** The Runtime instance for the current execution. */
   private static Runtime runtime = Runtime.getRuntime();
 
   /** This class is a collection of methods; it does not represent anything. */
-  private SystemPlume() {
-    throw new Error("do not instantiate");
+  private SystemP() {
+    throw new UnsupportedOperationException("do not instantiate");
   }
 
   //
@@ -37,7 +44,7 @@ public final class SystemPlume {
   @SuppressWarnings({"allcheckers:purity", "lock"}) // does not depend on object identity
   @Pure
   public static boolean getBooleanSystemProperty(String key, boolean defaultValue) {
-    return UtilPlume.getBooleanProperty(System.getProperties(), key, defaultValue);
+    return UtilP.getBooleanProperty(System.getProperties(), key, defaultValue);
   }
 
   /**
@@ -81,7 +88,7 @@ public final class SystemPlume {
    * Returns the amount of used memory in the JVM.
    *
    * <p>To force a garbage collection, which gives a more accurate overapproximation of the memory
-   * used, but is also slower, use {@link #usedMemory(boolean)}
+   * used, but is also slower, use {@link #usedMemory(boolean)}.
    *
    * @return the amount of used memory
    */
@@ -109,7 +116,10 @@ public final class SystemPlume {
    * Perform garbage collection. Like System.gc, but waits to return until garbage collection has
    * completed.
    */
-  @SuppressWarnings("PMD.DoNotCallGarbageCollectionExplicitly")
+  @SuppressWarnings({
+    "PMD.DoNotCallGarbageCollectionExplicitly",
+    // "PMD.EmptyCatchBlock"
+  })
   public static void gc() {
     long oldCollectionCount = getCollectionCount();
     System.gc();
@@ -155,18 +165,18 @@ public final class SystemPlume {
   }
 
   /** A triple of (timestamp, collection time, subsequent timestamp). */
-  private static class GcHistoryItem {
+  private static final class GcHistoryItem {
     /** When the collection happened. An epoch second. */
-    long timestamp;
+    private final long timestamp;
 
     /** The cumulative collection time in milliseconds. */
-    long collectionTime;
+    private final long collectionTime;
 
     /**
      * When the subsequent collection happened. It is 0 until after the subsequent collection
      * occurs. The purpose of this field is to avoid the need for a {@code peek2()} method on deque.
      */
-    long subsequentTimestamp = 0;
+    private long subsequentTimestamp = 0;
 
     /**
      * Creates a new GcHistoryItem.
@@ -174,14 +184,14 @@ public final class SystemPlume {
      * @param timestamp when the collection happened; an epoch second
      * @param collectionTime the collection time in milliseconds
      */
-    GcHistoryItem(long timestamp, long collectionTime) {
+    private GcHistoryItem(long timestamp, long collectionTime) {
       this.timestamp = timestamp;
       this.collectionTime = collectionTime;
     }
   }
 
   /** The history of recent garbage collection runs. The queue is never empty. */
-  private static Deque<GcHistoryItem> gcHistory;
+  private static @Modifiable Deque<GcHistoryItem> gcHistory;
 
   static {
     gcHistory = new ArrayDeque<>();
@@ -284,5 +294,39 @@ public final class SystemPlume {
           "total memory = " + Runtime.getRuntime().totalMemory(),
           " free memory = " + Runtime.getRuntime().freeMemory());
     }
+  }
+
+  //
+  // Paths
+  //
+
+  /**
+   * Returns the absolute path of a program that is on the system PATH, or null if the program is
+   * not found on the PATH. On Windows, if {@code programName} does not end with ".exe", then ".exe"
+   * is appended before searching.
+   *
+   * @param programName the name of the program
+   * @return the absolute path of the program, or null if it is not found on the PATH
+   */
+  public static @Nullable String pathToExecutable(String programName) {
+    String osName = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+    if (osName.contains("win") && !programName.endsWith(".exe")) {
+      programName += ".exe";
+    }
+
+    String path = System.getenv("PATH");
+    if (path == null || path.isEmpty()) {
+      return null;
+    }
+
+    @SuppressWarnings("StringSplitter") // the behavior is desirable
+    String[] pathDirs = path.split(Pattern.quote(System.getProperty("path.separator")));
+    for (String dir : pathDirs) {
+      File file = new File(dir, programName);
+      if (file.isFile() && file.canExecute()) {
+        return file.getAbsolutePath();
+      }
+    }
+    return null; // Executable not found in PATH
   }
 }

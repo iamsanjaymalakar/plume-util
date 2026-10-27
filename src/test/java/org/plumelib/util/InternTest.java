@@ -1,6 +1,7 @@
 package org.plumelib.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -43,7 +44,7 @@ final class InternTest {
           }
         }
         arrays[i] = a;
-        // System.out.println(ArraysPlume.toString(a));
+        // System.out.println(ArraysP.toString(a));
         // Sadly, this is required to get the last array to be
         // garbage-collected with Jikes 1.03 and JDK 1.2.2.
         a = null;
@@ -259,20 +260,14 @@ final class InternTest {
     assertTrue(oaIntern == oaOtherIntern);
   }
 
-  @SuppressWarnings("PMD.JUnitUseExpected") // wrong version of JUnit?
   @Test
   void testInternObjectException() {
     java.awt.Point pOrig = new java.awt.Point(1, 2);
-    try {
-      Intern.intern((Object) pOrig); // performed for side effect
-      throw new Error("Didn't throw IllegalArgumentException");
-    } catch (IllegalArgumentException e) {
-      // test succeeded
-    }
+    assertThrows(IllegalArgumentException.class, () -> Intern.intern((Object) pOrig));
   }
 
   /**
-   * Test the intering of subsequences as triples of the original sequence, the start and the end
+   * Test the interning of subsequences as triples of the original sequence, the start and the end
    * indices.
    */
   @SuppressWarnings("index:argument") // https://github.com/typetools/checker-framework/issues/2484
@@ -295,8 +290,8 @@ final class InternTest {
     assertTrue(s1 == s2);
     assertTrue(s3 == s4);
     assertTrue(s3 == s5);
-    assertTrue(ArraysPlume.isSubarray(s1, ArraysPlume.subarray(a1, i, j - i), 0));
-    assertTrue(ArraysPlume.isSubarray(ArraysPlume.subarray(a1, i, j - i), s1, 0));
+    assertTrue(ArraysP.isSubarray(s1, ArraysP.subarray(a1, i, j - i), 0));
+    assertTrue(ArraysP.isSubarray(ArraysP.subarray(a1, i, j - i), s1, 0));
 
     long[] l1 = Intern.intern(new long[] {1, 2, 3, 4, 5, 6});
     assertTrue(l1 == Intern.internSubsequence(l1, 0, l1.length));

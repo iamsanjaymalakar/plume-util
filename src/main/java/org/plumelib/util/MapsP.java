@@ -13,6 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 import org.checkerframework.checker.index.qual.Positive;
+import org.checkerframework.checker.modifiability.qual.Growable;
+import org.checkerframework.checker.modifiability.qual.Modifiable;
+import org.checkerframework.checker.modifiability.qual.Replaceable;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -20,16 +23,16 @@ import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.signedness.qual.Signed;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
-/** Utility functions for Map. For collections, see {@link CollectionsPlume}. */
+/** Utility functions for Map. For collections, see {@link CollectionsP}. */
 public final class MapsP {
 
   /** This class is a collection of methods; it does not represent anything. */
   private MapsP() {
-    throw new Error("do not instantiate");
+    throw new UnsupportedOperationException("do not instantiate");
   }
 
   /** The system-specific line separator string. */
-  private static final String lineSep = System.lineSeparator();
+  private static final String LINE_SEP = System.lineSeparator();
 
   // In Python, inlining this gave a 10x speed improvement.
   // Will the same be true for Java?
@@ -41,10 +44,9 @@ public final class MapsP {
    * @param m map from K to Integer
    * @param key the key whose value will be incremented
    * @return the old value, before it was incremented; this might be null
-   * @throws Error if the key is in the Map but maps to a non-Integer
    */
   public static <K extends @NonNull Object> @Nullable Integer incrementMap(
-      Map<K, Integer> m, K key) {
+      @Growable @Replaceable Map<K, Integer> m, K key) {
     return incrementMap(m, key, 1);
   }
 
@@ -57,10 +59,9 @@ public final class MapsP {
    * @param key the key whose value will be incremented
    * @param count how much to increment the value by
    * @return the old value, before it was incremented; this might be null
-   * @throws Error if the key is in the Map but maps to a non-Integer
    */
   public static <K extends @NonNull Object> @Nullable Integer incrementMap(
-      Map<K, Integer> m, K key, int count) {
+      @Growable @Replaceable Map<K, Integer> m, K key, int count) {
     Integer newTotal = m.getOrDefault(key, 0) + count;
     return m.put(key, newTotal);
   }
@@ -155,16 +156,16 @@ public final class MapsP {
    * @param orig a map
    * @return a copy of {@code orig}, as described above
    */
-  @SuppressWarnings("nullness") // generics problem with clone
+  @SuppressWarnings("nullness:argument")
   public static <
           K extends @Nullable DeepCopyable<K>,
           V extends @Nullable DeepCopyable<V>,
-          M extends @Nullable Map<K, V>>
-      @PolyNull M deepCopy(@PolyNull M orig) {
+          M extends @Modifiable @Nullable Map<K, V>>
+      @Modifiable @PolyNull M deepCopy(@PolyNull M orig) {
     if (orig == null) {
       return null;
     }
-    M result = UtilPlume.clone(orig);
+    M result = UtilP.clone(orig);
     result.clear();
     for (Map.Entry<K, V> mapEntry : orig.entrySet()) {
       K oldKey = mapEntry.getKey();
@@ -186,12 +187,12 @@ public final class MapsP {
    * @return a copy of {@code orig}, as described above
    */
   @SuppressWarnings("nullness") // generics problem with clone
-  public static <K, V extends @Nullable DeepCopyable<V>, M extends @Nullable Map<K, V>>
-      @PolyNull M deepCopyValues(@PolyNull M orig) {
+  public static <K, V extends @Nullable DeepCopyable<V>, M extends @Modifiable @Nullable Map<K, V>>
+      @Modifiable @PolyNull M deepCopyValues(@PolyNull M orig) {
     if (orig == null) {
       return null;
     }
-    M result = UtilPlume.clone(orig);
+    M result = UtilP.clone(orig);
     result.clear();
     for (Map.Entry<K, V> mapEntry : orig.entrySet()) {
       K oldKey = mapEntry.getKey();
@@ -202,10 +203,10 @@ public final class MapsP {
   }
 
   /**
-   * Creates a LRU cache.
+   * Creates an LRU cache.
    *
    * <p>You might want to consider using a {@code WeakHashMap} or {@code WeakIdentityHashMap}
-   * instead
+   * instead.
    *
    * @param <K> the type of keys
    * @param <V> the type of values
@@ -236,7 +237,8 @@ public final class MapsP {
    * @param orig a map
    * @return a copy of {@code orig}, as described above
    */
-  public static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneElements(@PolyNull M orig) {
+  public static <K, V, M extends @Modifiable @Nullable Map<K, V>>
+      @Modifiable @PolyNull M cloneElements(@PolyNull M orig) {
     return cloneElements(orig, true);
   }
 
@@ -250,7 +252,8 @@ public final class MapsP {
    * @param orig a map
    * @return a copy of {@code orig}, as described above
    */
-  public static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneValues(@PolyNull M orig) {
+  public static <K, V, M extends @Modifiable @Nullable Map<K, V>>
+      @Modifiable @PolyNull M cloneValues(@PolyNull M orig) {
     return cloneElements(orig, false);
   }
 
@@ -262,21 +265,21 @@ public final class MapsP {
    * @param <V> the type of values of the map
    * @param <M> the type of the map
    * @param orig a map
-   * @param cloneKeys if true, clone keys; otherwise, re-use them
+   * @param cloneKeys if true, clone keys; otherwise, reuse them
    * @return a copy of {@code orig}, as described above
    */
   @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
-  private static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneElements(
-      @PolyNull M orig, boolean cloneKeys) {
+  private static <K, V, M extends @Modifiable @Nullable Map<K, V>>
+      @Modifiable @PolyNull M cloneElements(@PolyNull M orig, boolean cloneKeys) {
     if (orig == null) {
       return null;
     }
-    M result = UtilPlume.clone(orig);
+    M result = UtilP.clone(orig);
     result.clear();
     for (Map.Entry<K, V> mapEntry : orig.entrySet()) {
       K oldKey = mapEntry.getKey();
-      K newKey = cloneKeys ? UtilPlume.clone(oldKey) : oldKey;
-      result.put(newKey, UtilPlume.clone(mapEntry.getValue()));
+      K newKey = cloneKeys ? UtilP.clone(oldKey) : oldKey;
+      result.put(newKey, UtilP.clone(mapEntry.getValue()));
     }
     return result;
   }
@@ -286,28 +289,6 @@ public final class MapsP {
   //
 
   // First, versions that append to an Appendable.
-
-  /**
-   * Write a multi-line representation of the map into the given Appendable (e.g., a StringBuilder),
-   * including a final line separator (unless the map is empty).
-   *
-   * <p>Each line has the form "{linePrefix}{key} =&gt; {value}"
-   *
-   * <p>This is less expensive than {@code sb.append(mapToStringMultiLine(m))}.
-   *
-   * @param <K> type of map keys
-   * @param <V> type of map values
-   * @param sb an Appendable (such as StringBuilder) to which to write a multi-line string
-   *     representation of m
-   * @param m map to be converted to a string
-   * @param linePrefix a prefix to put at the beginning of each line
-   * @deprecated use {@link #mapToStringMultiLine(Appendable, Map, String)}
-   */
-  @Deprecated(since = "2025-06-21")
-  public static <K extends @Signed @Nullable Object, V extends @Signed @Nullable Object>
-      void mapToString(Appendable sb, Map<K, V> m, String linePrefix) {
-    mapToStringMultiLine(sb, m, linePrefix);
-  }
 
   /**
    * Write a multi-line representation of the map into the given Appendable (e.g., a StringBuilder),
@@ -332,7 +313,7 @@ public final class MapsP {
         sb.append(Objects.toString(entry.getKey()));
         sb.append(" => ");
         sb.append(Objects.toString(entry.getValue()));
-        sb.append(lineSep);
+        sb.append(LINE_SEP);
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
@@ -353,7 +334,7 @@ public final class MapsP {
    * ...
    * </pre>
    *
-   * where each inner map is formatted by {@link mapToStringMultiLine(Appendable, Map, String)}.
+   * where each inner map is formatted by {@link #mapToStringMultiLine(Appendable, Map, String)}.
    *
    * @param <K1> the type of the outer map keys
    * @param <K2> the type of the inner map keys
@@ -361,11 +342,11 @@ public final class MapsP {
    * @param sb the destination for the string representation
    * @param linePrefix a prefix to put at the beginning of each line
    * @param innerHeader what to print before each key of the outer map (equivalently, before each
-   *     each inner map). If non-empty, it usually ends with a space to avoid abutting the outer map
-   *     key.
+   *     inner map). If non-empty, it usually ends with a space to avoid abutting the outer map key.
    * @param mapMap what to print
    */
-  static <K1 extends @Signed Object, K2 extends @Signed Object, V2 extends @Signed Object>
+  /*package*/ static <
+          K1 extends @Signed Object, K2 extends @Signed Object, V2 extends @Signed Object>
       void mapMapToStringMultiLine(
           Appendable sb, String innerHeader, Map<K1, Map<K2, V2>> mapMap, String linePrefix) {
     try {
@@ -373,7 +354,7 @@ public final class MapsP {
         sb.append(linePrefix);
         sb.append(innerHeader);
         sb.append(Objects.toString(entry.getKey()));
-        sb.append(lineSep);
+        sb.append(LINE_SEP);
         mapToStringMultiLine(sb, entry.getValue(), linePrefix + "  ");
       }
     } catch (IOException e) {
@@ -387,25 +368,6 @@ public final class MapsP {
    * Returns a multi-line string representation of a map. Each key-value pair appears on its own
    * line, with no indentation. The last line does not end with a line separator.
    *
-   * <p>Each line has the form "{linePrefix}{key} =&gt; {value}".
-   *
-   * @param <K> type of map keys
-   * @param <V> type of map values
-   * @param m map to be converted to a string
-   * @return a multi-line string representation of m
-   * @deprecated use {@link #mapToStringMultiLine(Map)}
-   */
-  @Deprecated(since = "2025-06-21")
-  @SideEffectFree
-  public static <K extends @Signed @Nullable Object, V extends @Signed @Nullable Object>
-      String mapToString(Map<K, V> m) {
-    return mapToStringMultiLine(m);
-  }
-
-  /**
-   * Returns a multi-line string representation of a map. Each key-value pair appears on its own
-   * line, with no indentation. The last line does not end with a line separator.
-   *
    * <p>Each line has the form "{key} =&gt; {value}".
    *
    * @param <K> type of map keys
@@ -414,13 +376,13 @@ public final class MapsP {
    * @return a multi-line string representation of the map
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
   public static <K extends @Signed @Nullable Object, V extends @Signed @Nullable Object>
       String mapToStringMultiLine(Map<K, V> m) {
-    StringJoiner result = new StringJoiner(lineSep);
+    StringJoiner result = new StringJoiner(LINE_SEP);
     for (Map.Entry<K, V> e : m.entrySet()) {
       result.add(e.getKey() + " => " + e.getValue());
     }
@@ -440,13 +402,13 @@ public final class MapsP {
    * @return a multi-line string representation of the map
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
   public static <K extends @Signed @Nullable Object, V extends @Signed @Nullable Object>
       String mapToStringMultiLine(Map<K, V> m, String linePrefix) {
-    StringJoiner result = new StringJoiner(lineSep);
+    StringJoiner result = new StringJoiner(LINE_SEP);
     for (Map.Entry<K, V> e : m.entrySet()) {
       result.add(linePrefix + e.getKey() + " => " + e.getValue());
     }
@@ -486,19 +448,19 @@ public final class MapsP {
    * @return a string representation of the map
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
   public static <K extends @Signed @Nullable Object, V extends @Signed @Nullable Object>
       String mapToStringAndClassMultiLine(Map<K, V> m, String linePrefix) {
-    StringJoiner result = new StringJoiner(lineSep);
+    StringJoiner result = new StringJoiner(LINE_SEP);
     for (Map.Entry<K, V> e : m.entrySet()) {
       result.add(
           linePrefix
-              + StringsPlume.toStringAndClass(e.getKey())
+              + StringsP.toStringAndClass(e.getKey())
               + " => "
-              + StringsPlume.toStringAndClass(e.getValue()));
+              + StringsP.toStringAndClass(e.getValue()));
     }
     return result.toString();
   }

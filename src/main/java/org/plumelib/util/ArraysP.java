@@ -25,6 +25,7 @@ import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.SameLen;
 import org.checkerframework.checker.interning.qual.PolyInterned;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.modifiability.qual.Modifiable;
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
 import org.checkerframework.checker.mustcall.qual.PolyMustCall;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -37,15 +38,18 @@ import org.checkerframework.common.value.qual.ArrayLen;
 import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
-import org.plumelib.reflection.ReflectionPlume;
+import org.plumelib.reflection.ReflectionP;
 
 /** Utilities for manipulating arrays. This complements {@link java.util.Arrays}. */
 @SuppressWarnings("interning") // to do later
-public final class ArraysPlume {
+public final class ArraysP {
   /** This class is a collection of methods; it does not represent anything. */
-  private ArraysPlume() {
-    throw new Error("do not instantiate");
+  private ArraysP() {
+    throw new UnsupportedOperationException("do not instantiate");
   }
+
+  /** Sorts arbitrary objects; used to determine equal. */
+  private static final StringsP.ObjectComparator OBJECT_COMPARATOR = StringsP.ObjectComparator.IT;
 
   // //////////////////////////////////////////////////////////////////////
   // Creation
@@ -72,7 +76,7 @@ public final class ArraysPlume {
    *
    * @param <T> the type of the array elements
    * @param array the array
-   * @param lastElt the new last elemeent
+   * @param lastElt the new last element
    * @return a new array containing the array elements and the last element, in that order
    */
   @SuppressWarnings({
@@ -133,8 +137,7 @@ public final class ArraysPlume {
     Class<T[]> arrayType = (Class<T[]>) array.getClass();
     Class<T> elementType = (Class<T>) arrayType.getComponentType();
     assert elementType != null : "@AssumeAssertion(nullness) argument was an array type";
-    T[] result = (T[]) Array.newInstance(elementType, newLength);
-    return result;
+    return (T[]) Array.newInstance(elementType, newLength);
   }
 
   // //////////////////////////////////////////////////////////////////////
@@ -455,7 +458,7 @@ public final class ArraysPlume {
       throw new ArrayIndexOutOfBoundsException("Empty array passed to elementRange(int[])");
     }
     @SuppressWarnings({
-      "allcheckers:purity.not.deterministic.call",
+      "allcheckers:purity.call",
       "allcheckers:method.guarantee.violated"
     }) // pure up to .equals(), which is enough for arithmetic
     int[] minAndMax = minAndMax(a);
@@ -476,7 +479,7 @@ public final class ArraysPlume {
       throw new ArrayIndexOutOfBoundsException("Empty array passed to elementRange(long[])");
     }
     @SuppressWarnings({
-      "allcheckers:purity.not.deterministic.call",
+      "allcheckers:purity.call",
       "allcheckers:method.guarantee.violated"
     }) // pure up to .equals(), which is enough for arithmetic
     long[] minAndMax = minAndMax(a);
@@ -798,7 +801,7 @@ public final class ArraysPlume {
    * @param elt the element to search for
    * @param minindex first index at which to search
    * @param indexlimit first index at which not to search
-   * @return the first index i containing the specified element, such that {@code minindex <=; i <
+   * @return the first index i containing the specified element, such that {@code minindex <= i <
    *     indexlimit}, or -1 if the element is not found in the array
    * @see java.util.ArrayList#indexOf(java.lang.Object)
    */
@@ -824,7 +827,7 @@ public final class ArraysPlume {
    * @param elt the element to search for
    * @param minindex first index at which to search
    * @param indexlimit first index at which not to search
-   * @return the first index i containing the specified element, such that {@code minindex <=; i <
+   * @return the first index i containing the specified element, such that {@code minindex <= i <
    *     indexlimit}, or -1 if the element is not found in the array
    * @see java.util.ArrayList#indexOf(java.lang.Object)
    */
@@ -888,7 +891,7 @@ public final class ArraysPlume {
    * @param elt the element to search for
    * @param minindex first index at which to search
    * @param indexlimit first index at which not to search
-   * @return the first index i containing the specified element, such that {@code minindex <=; i <
+   * @return the first index i containing the specified element, such that {@code minindex <= i <
    *     indexlimit}, or -1 if the element is not found in the array
    * @see java.util.ArrayList#indexOf(java.lang.Object)
    */
@@ -1021,7 +1024,7 @@ public final class ArraysPlume {
   @Pure
   public static int indexOf(
       @PolyNull @PolySigned Object[] a, List<? extends @PolyNull @PolySigned Object> sub) {
-    int aIndexMax = a.length - sub.size() + 1;
+    int aIndexMax = a.length - sub.size();
     for (int i = 0; i <= aIndexMax; i++) {
       if (isSubarray(a, sub, i)) {
         return i;
@@ -1499,10 +1502,11 @@ public final class ArraysPlume {
       @PolyNull @PolySigned Object[] a,
       List<? extends @PolyNull @PolySigned Object> sub,
       @NonNegative int aOffset) {
-    if (aOffset + sub.size() > a.length) {
+    int subSize = sub.size();
+    if (aOffset + subSize > a.length) {
       return false;
     }
-    for (int i = 0; i < sub.size(); i++) {
+    for (int i = 0; i < subSize; i++) {
       if (!Objects.equals(sub.get(i), a[aOffset + i])) {
         return false;
       }
@@ -1524,10 +1528,11 @@ public final class ArraysPlume {
   @Pure
   public static <T> boolean isSubarrayEq(
       @PolyNull @PolySigned Object[] a, List<@PolySigned T> sub, @NonNegative int aOffset) {
-    if (aOffset + sub.size() > a.length) {
+    int subSize = sub.size();
+    if (aOffset + subSize > a.length) {
       return false;
     }
-    for (int i = 0; i < sub.size(); i++) {
+    for (int i = 0; i < subSize; i++) {
       if (sub.get(i) != a[aOffset + i]) {
         return false;
       }
@@ -1599,10 +1604,11 @@ public final class ArraysPlume {
    */
   @Pure
   public static <T> boolean isSubarray(List<T> a, List<T> sub, @NonNegative int aOffset) {
-    if (aOffset + sub.size() > a.size()) {
+    int subSize = sub.size();
+    if (aOffset + subSize > a.size()) {
       return false;
     }
-    for (int i = 0; i < sub.size(); i++) {
+    for (int i = 0; i < subSize; i++) {
       if (!Objects.equals(sub.get(i), a.get(aOffset + i))) {
         return false;
       }
@@ -1623,10 +1629,11 @@ public final class ArraysPlume {
    */
   @Pure
   public static <T> boolean isSubarrayEq(List<T> a, List<T> sub, @NonNegative int aOffset) {
-    if (aOffset + sub.size() > a.size()) {
+    int subSize = sub.size();
+    if (aOffset + subSize > a.size()) {
       return false;
     }
-    for (int i = 0; i < sub.size(); i++) {
+    for (int i = 0; i < subSize; i++) {
       if (sub.get(i) != a.get(aOffset + i)) {
         return false;
       }
@@ -1778,13 +1785,13 @@ public final class ArraysPlume {
    *
    * @param <T> the type of array or list elements
    */
-  private static class ListOrArray<T extends @Nullable Object> {
+  private static final class ListOrArray<T extends @Nullable Object> {
     // At most one field is non-null.  If both are null, this object represents the null value.
     /** The array that this object wraps, or null. */
-    T @Nullable [] theArray = null;
+    private T @Nullable [] theArray = null;
 
     /** The list that this object wraps, or null. */
-    @Nullable List<T> theList = null;
+    private @Nullable List<T> theList = null;
 
     /**
      * Creates a ListOrArray that wraps an array. For efficiency, the argument is stored directly,
@@ -1792,8 +1799,7 @@ public final class ArraysPlume {
      *
      * @param theArray the delegate that will be wrapped
      */
-    @SuppressWarnings("PMD.ArrayIsStoredDirectly")
-    ListOrArray(T @Nullable [] theArray) {
+    private ListOrArray(T @Nullable [] theArray) {
       this.theArray = theArray;
     }
 
@@ -1803,7 +1809,7 @@ public final class ArraysPlume {
      *
      * @param theList the delegate that will be wrapped
      */
-    ListOrArray(@Nullable List<T> theList) {
+    private ListOrArray(@Nullable List<T> theList) {
       this.theList = theList;
     }
 
@@ -1813,7 +1819,7 @@ public final class ArraysPlume {
      * @return true if this represents a null value
      */
     @Pure
-    boolean isNull() {
+    private boolean isNull() {
       return theArray == null && theList == null;
     }
 
@@ -1823,7 +1829,7 @@ public final class ArraysPlume {
      * @return the size of the collection this represents
      */
     @Pure
-    @NonNegative int size() {
+    private @NonNegative int size() {
       if (theArray != null) {
         return theArray.length;
       } else if (theList != null) {
@@ -1839,7 +1845,7 @@ public final class ArraysPlume {
      * @return true if this represents an empty collection
      */
     @Pure
-    boolean isEmpty() {
+    private boolean isEmpty() {
       if (theArray != null) {
         return theArray.length == 0;
       } else if (theList != null) {
@@ -1856,9 +1862,8 @@ public final class ArraysPlume {
      *
      * @return an array with the same contents as this
      */
-    @SuppressWarnings("PMD.MethodReturnsInternalArray")
     @SideEffectFree
-    T[] toArray() {
+    private T[] toArray() {
       if (theArray != null) {
         return theArray;
       } else if (theList != null) {
@@ -1878,7 +1883,7 @@ public final class ArraysPlume {
       "lowerbound:argument", // TODO: annotate for Index Checker
       "index:argument" // TODO: annotate for Index Checker
     })
-    void copyInto(T[] dest, int destPos) {
+    private void copyInto(T[] dest, int destPos) {
       if (theArray != null) {
         System.arraycopy(theArray, 0, dest, destPos, theArray.length);
       } else if (theList != null) {
@@ -1900,11 +1905,11 @@ public final class ArraysPlume {
      *
      * @return the least upper bound of the classes of the elements of this
      */
-    @Nullable Class<? extends @Nullable Object> leastUpperBound() {
+    private @Nullable Class<? extends @Nullable Object> leastUpperBound() {
       if (theArray != null) {
-        return ReflectionPlume.leastUpperBound(theArray);
+        return ReflectionP.leastUpperBound(theArray);
       } else if (theList != null) {
-        return ReflectionPlume.leastUpperBound(theList);
+        return ReflectionP.leastUpperBound(theList);
       } else {
         throw new Error("both fields are null");
       }
@@ -1926,8 +1931,8 @@ public final class ArraysPlume {
      *
      * @return a verbose representation of this, for debugging
      */
-    @SuppressWarnings("UnusedMethod")
-    public String toStringDebug() {
+    @SuppressWarnings({"UnusedMethod", "PMD.UnusedPrivateMethod"})
+    private String toStringDebug() {
       String theArrayString;
       if (theArray == null) {
         theArrayString = "null";
@@ -2027,7 +2032,7 @@ public final class ArraysPlume {
       // from the elements in the arrays.  It might be a subtype of T, though, which is incorrect.
       @SuppressWarnings("unchecked")
       Class<T> resultType =
-          ReflectionPlume.leastUpperBound(
+          ReflectionP.leastUpperBound(
               (Class<T>) a.leastUpperBound(), (Class<T>) b.leastUpperBound());
 
       if (resultType == null) {
@@ -2417,7 +2422,7 @@ public final class ArraysPlume {
     StringJoiner sj = new StringJoiner(", ", "[", "]");
     for (Object elt : a) {
       if (quoted && elt instanceof String s) {
-        sj.add("\"" + StringsPlume.escapeJava(s) + "\"");
+        sj.add("\"" + StringsP.escapeJava(s) + "\"");
       } else {
         sj.add(Objects.toString(elt));
       }
@@ -2458,7 +2463,7 @@ public final class ArraysPlume {
     StringJoiner sj = new StringJoiner(", ", "[", "]");
     for (Object elt : a) {
       if (quoted && elt instanceof String s) {
-        sj.add("\"" + StringsPlume.escapeJava(s) + "\"");
+        sj.add("\"" + StringsP.escapeJava(s) + "\"");
       } else {
         sj.add(Objects.toString(elt));
       }
@@ -2502,19 +2507,6 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff the array is sorted
-   * @deprecated use {@link #isSorted(int[])}
-   */
-  @Deprecated(since = "2024-04-21")
-  @Pure
-  public static boolean sorted(int[] a) {
-    return isSorted(a);
-  }
-
-  /**
-   * Returns true if the array is sorted.
-   *
-   * @param a an array
-   * @return true iff the array is sorted
    */
   @Pure
   public static boolean isSorted(int[] a) {
@@ -2524,18 +2516,6 @@ public final class ArraysPlume {
       }
     }
     return true;
-  }
-
-  /**
-   * Returns true if the array is sorted.
-   *
-   * @param a an array
-   * @return true iff the array is sorted
-   * @deprecated use {@link #isSorted(long[])}
-   */
-  @Deprecated(since = "2024-04-21")
-  public static boolean sorted(long[] a) {
-    return isSorted(a);
   }
 
   /**
@@ -2613,24 +2593,6 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(boolean[] a) {
-    return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
    */
   @Pure
   public static boolean hasNoDuplicates(boolean[] a) {
@@ -2655,24 +2617,6 @@ public final class ArraysPlume {
       }
     }
     return false;
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(byte[] a) {
-    return !hasDuplicates(a);
   }
 
   /**
@@ -2715,24 +2659,6 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(char[] a) {
-    return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
    */
   @Pure
   public static boolean hasNoDuplicates(char[] a) {
@@ -2757,24 +2683,6 @@ public final class ArraysPlume {
       }
     }
     return false;
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(float[] a) {
-    return !hasDuplicates(a);
   }
 
   /**
@@ -2817,24 +2725,6 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(short[] a) {
-    return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
    */
   @Pure
   public static boolean hasNoDuplicates(short[] a) {
@@ -2859,24 +2749,6 @@ public final class ArraysPlume {
       }
     }
     return false;
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(int[] a) {
-    return !hasDuplicates(a);
   }
 
   /**
@@ -2920,25 +2792,6 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(double[] a) {
-    return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements. Equality checking uses {@link
-   * Double#equals}.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
    */
   @Pure
   public static boolean hasNoDuplicates(double[] a) {
@@ -2972,24 +2825,6 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(long[] a) {
-    return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
    */
   @Pure
   public static boolean hasNoDuplicates(long[] a) {
@@ -3007,31 +2842,13 @@ public final class ArraysPlume {
   @SuppressWarnings({"allcheckers:purity", "lock"}) // side effect to local state (HashSet)
   @Pure
   public static boolean hasDuplicates(String[] a) {
-    HashSet<String> hs = new HashSet<>();
+    Set<String> hs = new HashSet<>();
     for (String elt : a) {
       if (!hs.add(elt)) {
         return true;
       }
     }
     return false;
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(String[] a) {
-    return !hasDuplicates(a);
   }
 
   /**
@@ -3058,7 +2875,7 @@ public final class ArraysPlume {
   @SuppressWarnings({"allcheckers:purity", "lock"}) // side effect to local state (HashSet)
   @Pure
   public static boolean hasDuplicates(Object[] a) {
-    HashSet<Object> hs = new HashSet<>();
+    Set<Object> hs = new HashSet<>();
     for (Object elt : a) {
       if (!hs.add(elt)) {
         return true;
@@ -3074,62 +2891,10 @@ public final class ArraysPlume {
    *
    * @param a an array
    * @return true iff a does not contain duplicate elements
-   * @deprecated use {@code hasNoDuplicates}
-   */
-  @Deprecated(since = "2023-12-01")
-  // @InlineMe(
-  //     replacement = "!ArraysPlume.hasDuplicates(a)",
-  //     imports = "org.plumelib.util.ArraysPlume")
-  @Pure
-  public static boolean noDuplicates(Object[] a) {
-    return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff a does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param a an array
-   * @return true iff a does not contain duplicate elements
    */
   @Pure
   public static boolean hasNoDuplicates(Object[] a) {
     return !hasDuplicates(a);
-  }
-
-  /**
-   * Returns true iff the list does not contain duplicate elements.
-   *
-   * <p>The implementation uses O(n) time and O(n) space.
-   *
-   * @param <T> the type of the elements
-   * @param a a list
-   * @return true iff a does not contain duplicate elements
-   * @deprecated use {@link CollectionsPlume#hasNoDuplicates}
-   */
-  @Deprecated(since = "2021-04-09")
-  @SuppressWarnings({"allcheckers:purity", "lock"}) // side effect to local state (HashSet)
-  @Pure
-  public static <T> boolean noDuplicates(List<T> a) {
-    if (a instanceof RandomAccess) {
-      HashSet<T> hs = new HashSet<>();
-      for (int i = 0; i < a.size(); i++) { // NOPMD: for loop is more efficient than foreach loop
-        T elt = a.get(i);
-        if (!hs.add(elt)) {
-          return false;
-        }
-      }
-      return true;
-    } else {
-      HashSet<T> hs = new HashSet<>();
-      for (T elt : a) {
-        if (!hs.add(elt)) {
-          return false;
-        }
-      }
-      return true;
-    }
   }
 
   // //////////////////////////////////////////////////////////////////////
@@ -3205,7 +2970,7 @@ public final class ArraysPlume {
    */
   @SuppressWarnings({
     "allcheckers:purity",
-    "lock:method.guarantee.violated"
+    "lock:method.guarantee.violated",
   }) // side effect to local state
   @SideEffectFree
   public static int[] fnInverse(int[] a, @NonNegative int arange) {
@@ -3400,18 +3165,22 @@ public final class ArraysPlume {
    */
   public static final class IntArrayComparatorLexical implements Comparator<int[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical IntArrayComparatorLexical. */
-    public static final IntArrayComparatorLexical it = new IntArrayComparatorLexical();
+    public static final IntArrayComparatorLexical IT = new IntArrayComparatorLexical();
 
     /**
-     * Create a new IntArrayComparatorLexical.
+     * The canonical IntArrayComparatorLexical.
      *
-     * @deprecated use {@link #it}.
+     * @deprecated use {@link #IT}
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public IntArrayComparatorLexical() {}
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final IntArrayComparatorLexical it = IT;
+
+    /** Create a new IntArrayComparatorLexical. External clients should use {@link #IT}. */
+    private IntArrayComparatorLexical() {}
 
     /**
      * Compare two arrays lexically (element-by-element).
@@ -3447,18 +3216,22 @@ public final class ArraysPlume {
    */
   public static final class LongArrayComparatorLexical implements Comparator<long[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical LongArrayComparatorLexical. */
-    public static final LongArrayComparatorLexical it = new LongArrayComparatorLexical();
+    public static final LongArrayComparatorLexical IT = new LongArrayComparatorLexical();
 
     /**
-     * Create a new LongArrayComparatorLexical.
+     * The canonical LongArrayComparatorLexical.
      *
-     * @deprecated use {@link #it}.
+     * @deprecated use {@link #IT}
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public LongArrayComparatorLexical() {}
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final LongArrayComparatorLexical it = IT;
+
+    /** Create a new LongArrayComparatorLexical. External clients should use {@link #IT}. */
+    private LongArrayComparatorLexical() {}
 
     /**
      * Compare two arrays lexically (element-by-element).
@@ -3495,18 +3268,22 @@ public final class ArraysPlume {
   public static final class DoubleArrayComparatorLexical
       implements Comparator<double[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical DoubleArrayComparatorLexical. */
-    public static final DoubleArrayComparatorLexical it = new DoubleArrayComparatorLexical();
+    public static final DoubleArrayComparatorLexical IT = new DoubleArrayComparatorLexical();
 
     /**
-     * Create a new DoubleArrayComparatorLexical.
+     * The canonical DoubleArrayComparatorLexical.
      *
-     * @deprecated use {@link #it}.
+     * @deprecated use {@link #IT}
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public DoubleArrayComparatorLexical() {}
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final DoubleArrayComparatorLexical it = IT;
+
+    /** Create a new DoubleArrayComparatorLexical. External clients should use {@link #IT}. */
+    private DoubleArrayComparatorLexical() {}
 
     /**
      * Compare two arrays lexically (element-by-element).
@@ -3544,18 +3321,26 @@ public final class ArraysPlume {
   public static final class StringArrayComparatorLexical
       implements Comparator<String[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical StringArrayComparatorLexical. */
-    public static final StringArrayComparatorLexical it = new StringArrayComparatorLexical();
+    public static final StringArrayComparatorLexical IT = new StringArrayComparatorLexical();
+
+    /**
+     * The canonical StringArrayComparatorLexical.
+     *
+     * @deprecated use {@link #IT}
+     */
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final StringArrayComparatorLexical it = IT;
 
     /**
      * Create a new StringArrayComparatorLexical.
      *
-     * @deprecated use {@link #it}.
+     * <p>External clients should use {@link #IT}.
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public StringArrayComparatorLexical() {}
+    private StringArrayComparatorLexical() {}
 
     /**
      * Compare two arrays lexically (element-by-element).
@@ -3565,11 +3350,11 @@ public final class ArraysPlume {
      * @return a negative integer, zero, or a positive integer, depending on whether the first
      *     argument is less than, equal to, or greater than the second argument
      */
-    @Pure
     // The signature on this method is unnecessarily strict because it
     // requires that the component types be identical.  The signature should
     // be compare(@PolyNull(1) String[], @PolyNull(2) String[]), but the
     // @PolyNull qualifier does not yet take an argument.
+    @Pure
     @Override
     public int compare(@PolyNull String[] a1, @PolyNull String[] a2) {
       if (a1 == a2) {
@@ -3608,7 +3393,7 @@ public final class ArraysPlume {
   public static final class ComparableArrayComparatorLexical<T extends Comparable<T>>
       implements Comparator<T[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** Create a new ComparableArrayComparatorLexical. */
     public ComparableArrayComparatorLexical() {}
@@ -3621,11 +3406,11 @@ public final class ArraysPlume {
      * @return a negative integer, zero, or a positive integer, depending on whether the first
      *     argument is less than, equal to, or greater than the second argument
      */
-    @Pure
     // The signature on this method is unnecessarily strict because it
     // requires that the component types be identical.  The signature should
     // be compare(@PolyNull(1) T[], @PolyNull(2) T[]), but the
     // @PolyNull qualifier does not yet take an argument.
+    @Pure
     @Override
     public int compare(@PolyNull T[] a1, @PolyNull T[] a2) {
       if (a1 == a2) {
@@ -3671,18 +3456,26 @@ public final class ArraysPlume {
   public static final class ObjectArrayComparatorLexical
       implements Comparator<Object[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical ObjectArrayComparatorLexical. */
-    public static final ObjectArrayComparatorLexical it = new ObjectArrayComparatorLexical();
+    public static final ObjectArrayComparatorLexical IT = new ObjectArrayComparatorLexical();
+
+    /**
+     * The canonical ObjectArrayComparatorLexical.
+     *
+     * @deprecated use {@link #IT}
+     */
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final ObjectArrayComparatorLexical it = IT;
 
     /**
      * Create a new ObjectArrayComparatorLexical.
      *
-     * @deprecated use {@link #it}.
+     * <p>External clients should use {@link #IT}.
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public ObjectArrayComparatorLexical() {}
+    private ObjectArrayComparatorLexical() {}
 
     /**
      * Compare two arrays lexically (element-by-element).
@@ -3692,11 +3485,11 @@ public final class ArraysPlume {
      * @return a negative integer, zero, or a positive integer, depending on whether the first
      *     argument is less than, equal to, or greater than the second argument
      */
-    @Pure
     // The signature on this method is unnecessarily strict because it
     // requires that the component types be identical.  The signature should
     // be compare(@PolyNull(1) Object[], @PolyNull(2) Object[]), but the
     // @PolyNull qualifier does not yet take an argument.
+    @Pure
     @Override
     public int compare(@PolyNull Object[] a1, @PolyNull Object[] a2) {
       if (a1 == a2) {
@@ -3704,7 +3497,7 @@ public final class ArraysPlume {
       }
       int len = Math.min(a1.length, a2.length);
       for (int i = 0; i < len; i++) {
-        int tmp = objectComparator.compare(a1[i], a2[i]);
+        int tmp = OBJECT_COMPARATOR.compare(a1[i], a2[i]);
         if (tmp != 0) {
           return tmp;
         }
@@ -3724,18 +3517,26 @@ public final class ArraysPlume {
   public static final class IntArrayComparatorLengthFirst
       implements Comparator<int[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical IntArrayComparatorLengthFirst. */
-    public static final IntArrayComparatorLengthFirst it = new IntArrayComparatorLengthFirst();
+    public static final IntArrayComparatorLengthFirst IT = new IntArrayComparatorLengthFirst();
+
+    /**
+     * The canonical IntArrayComparatorLengthFirst.
+     *
+     * @deprecated use {@link #IT}
+     */
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final IntArrayComparatorLengthFirst it = IT;
 
     /**
      * Create a new IntArrayComparatorLengthFirst.
      *
-     * @deprecated use {@link #it}.
+     * <p>External clients should use {@link #IT}.
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public IntArrayComparatorLengthFirst() {}
+    private IntArrayComparatorLengthFirst() {}
 
     /**
      * Compare two arrays by length, then lexically (element-by-element).
@@ -3774,18 +3575,26 @@ public final class ArraysPlume {
   public static final class LongArrayComparatorLengthFirst
       implements Comparator<long[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical LongArrayComparatorLengthFirst. */
-    public static final LongArrayComparatorLengthFirst it = new LongArrayComparatorLengthFirst();
+    public static final LongArrayComparatorLengthFirst IT = new LongArrayComparatorLengthFirst();
+
+    /**
+     * The canonical LongArrayComparatorLengthFirst.
+     *
+     * @deprecated use {@link #IT}
+     */
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final LongArrayComparatorLengthFirst it = IT;
 
     /**
      * Create a new LongArrayComparatorLengthFirst.
      *
-     * @deprecated use {@link #it}.
+     * <p>External clients should use {@link #IT}.
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public LongArrayComparatorLengthFirst() {}
+    private LongArrayComparatorLengthFirst() {}
 
     /**
      * Compare two arrays by length, then lexically (element-by-element).
@@ -3826,7 +3635,7 @@ public final class ArraysPlume {
   public static final class ComparableArrayComparatorLengthFirst<T extends Comparable<T>>
       implements Comparator<T[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** Create a new ComparableArrayComparatorLengthFirst. */
     public ComparableArrayComparatorLengthFirst() {}
@@ -3839,11 +3648,11 @@ public final class ArraysPlume {
      * @return a negative integer, zero, or a positive integer, depending on whether the first
      *     argument is less than, equal to, or greater than the second argument
      */
-    @Pure
     // The signature on this method is unnecessarily strict because it
     // requires that the component types be identical.  The signature should
     // be compare(@PolyNull(1) T[], @PolyNull(2) T[]), but the
     // @PolyNull qualifier does not yet take an argument.
+    @Pure
     @Override
     public int compare(@PolyNull T[] a1, @PolyNull T[] a2) {
       if (a1 == a2) {
@@ -3876,10 +3685,6 @@ public final class ArraysPlume {
     }
   }
 
-  /** Sorts arbitrary objects; used to determine equal. */
-  private static final StringsPlume.ObjectComparator objectComparator =
-      StringsPlume.ObjectComparator.it;
-
   /**
    * Compare two arrays first by length (a shorter array is considered less), and if of equal length
    * compare lexically (element-by-element).
@@ -3895,19 +3700,27 @@ public final class ArraysPlume {
   public static final class ObjectArrayComparatorLengthFirst
       implements Comparator<Object[]>, Serializable {
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
+    private static final long serialVersionUID = 20150812L;
 
     /** The canonical ObjectArrayComparatorLengthFirst. */
-    public static final ObjectArrayComparatorLengthFirst it =
+    public static final ObjectArrayComparatorLengthFirst IT =
         new ObjectArrayComparatorLengthFirst();
+
+    /**
+     * The canonical ObjectArrayComparatorLengthFirst.
+     *
+     * @deprecated use {@link #IT}
+     */
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final ObjectArrayComparatorLengthFirst it = IT;
 
     /**
      * Create a new ObjectArrayComparatorLengthFirst.
      *
-     * @deprecated use {@link #it}.
+     * <p>External clients should use {@link #IT}.
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public ObjectArrayComparatorLengthFirst() {}
+    private ObjectArrayComparatorLengthFirst() {}
 
     /**
      * Compare two arrays by length, then lexically (element-by-element). Null elements are
@@ -3918,11 +3731,11 @@ public final class ArraysPlume {
      * @return a negative integer, zero, or a positive integer, depending on whether the first
      *     argument is less than, equal to, or greater than the second argument
      */
-    @Pure
     // The signature on this method is unnecessarily strict because it
     // requires that the component types be identical.  The signature should
     // be compare(@PolyNull(1) Object[], @PolyNull(2) Object[]), but the
     // @PolyNull qualifier does not yet take an argument.
+    @Pure
     @Override
     public int compare(@PolyNull Object[] a1, @PolyNull Object[] a2) {
       if (a1 == a2) {
@@ -3932,7 +3745,7 @@ public final class ArraysPlume {
         return a1.length - a2.length;
       }
       for (int i = 0; i < a1.length; i++) {
-        int tmp = objectComparator.compare(a1[i], a2[i]);
+        int tmp = OBJECT_COMPARATOR.compare(a1[i], a2[i]);
         if (tmp != 0) {
           return tmp;
         }
@@ -3964,7 +3777,7 @@ public final class ArraysPlume {
    * Returns true if all elements of a are null.
    *
    * @param a an array
-   * @return true iff all elements of a are null (unspecified result if a is zero-sized)
+   * @return true iff all elements of a are null (true if a is zero-sized)
    */
   @Pure
   public static boolean allNull(@PolyNull Object[] a) {
@@ -3979,7 +3792,7 @@ public final class ArraysPlume {
   /**
    * Returns true if a contains null.
    *
-   * @param a an array
+   * @param a a list
    * @return true iff some element of a is null (false if a is zero-sized)
    */
   @Pure
@@ -3994,8 +3807,8 @@ public final class ArraysPlume {
   /**
    * Returns true if all elements of a are null.
    *
-   * @param a an array
-   * @return true iff all elements of a are null (unspecified result if a is zero-sized)
+   * @param a a list
+   * @return true iff all elements of a are null (true if a is zero-sized)
    */
   @Pure
   public static boolean allNull(List<?> a) {
@@ -4064,11 +3877,12 @@ public final class ArraysPlume {
       @NonNegative int numEmptyParts,
       @NonNegative int numNonemptyParts) {
 
-    if (numEmptyParts > elts.size()) {
-      throw new IllegalArgumentException(numEmptyParts + " > " + elts.size());
+    int eltsSize = elts.size();
+    if (numEmptyParts > eltsSize) {
+      throw new IllegalArgumentException(numEmptyParts + " > " + eltsSize);
     }
 
-    if (elts.isEmpty()) {
+    if (eltsSize == 0) {
       return resultSoFar;
     }
 
@@ -4078,27 +3892,27 @@ public final class ArraysPlume {
     List<Partitioning<T>> result = new ArrayList<>();
 
     // Put elt in an existing part in the partitioning.
-    if (elts.size() > numEmptyParts) {
-      List<Partitioning<T>> resultSoFar_augmented = new ArrayList<>();
+    if (eltsSize > numEmptyParts) {
+      List<Partitioning<T>> resultSoFarAugmented = new ArrayList<>();
       for (int i = 0; i < numNonemptyParts; i++) {
         for (Partitioning<T> p : resultSoFar) {
-          resultSoFar_augmented.add(p.addToPart(i, elt));
+          resultSoFarAugmented.add(p.addToPart(i, elt));
         }
       }
       result.addAll(
           partitionIntoHelper(
-              eltsRemaining, resultSoFar_augmented, numEmptyParts, numNonemptyParts));
+              eltsRemaining, resultSoFarAugmented, numEmptyParts, numNonemptyParts));
     }
 
     // Put elt in a newly-created part in the partitioning.
     if (numEmptyParts > 0) {
-      List<Partitioning<T>> resultSoFar_augmented = new ArrayList<>();
+      List<Partitioning<T>> resultSoFarAugmented = new ArrayList<>();
       for (Partitioning<T> p : resultSoFar) {
-        resultSoFar_augmented.add(p.addToPart(numNonemptyParts, elt));
+        resultSoFarAugmented.add(p.addToPart(numNonemptyParts, elt));
       }
       result.addAll(
           partitionIntoHelper(
-              eltsRemaining, resultSoFar_augmented, numEmptyParts - 1, numNonemptyParts + 1));
+              eltsRemaining, resultSoFarAugmented, numEmptyParts - 1, numNonemptyParts + 1));
     }
 
     return result;
@@ -4109,20 +3923,24 @@ public final class ArraysPlume {
    *
    * @param <T> the type of the elements of the sets
    */
-  static class Partitioning<T extends @NonNull Object> extends ArrayList<ArrayList<T>> {
+  // @SuppressWarnings("PMD.LooseCoupling") // TODO: document why ArrayList instead of List
+  /*package*/ static final class Partitioning<T extends @NonNull Object>
+      extends ArrayList<ArrayList<T>> {
 
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20170418;
+    private static final long serialVersionUID = 20170418;
 
     /** Empty constructor. */
-    Partitioning() {}
+    private @Modifiable Partitioning() {
+      super();
+    }
 
     /**
      * Copy constructor.
      *
      * @param other the Partitioning to make a copy of
      */
-    Partitioning(Partitioning<T> other) {
+    private @Modifiable Partitioning(Partitioning<T> other) {
       super(other);
     }
 
@@ -4132,7 +3950,7 @@ public final class ArraysPlume {
      *
      * @return all the elements in any part of the Partitioning
      */
-    List<T> partitionedSet() {
+    private List<T> partitionedSet() {
       ArrayList<T> result = new ArrayList<>();
       for (List<T> part : this) {
         result.addAll(part);
@@ -4146,7 +3964,7 @@ public final class ArraysPlume {
      * @param elts the elements that might be partitioned by this
      * @return true if this is a partitioning for {@code elts}
      */
-    boolean isPartitioningFor(List<T> elts) {
+    /*package*/ boolean isPartitioningFor(List<T> elts) {
       // Inefficient O(n^2) implementation.  We can do O(n log n) if desired.
       List<T> ps = partitionedSet();
       return ps.size() == elts.size() && ps.containsAll(elts);
@@ -4159,7 +3977,7 @@ public final class ArraysPlume {
      * @param elt the element to add
      * @return a new partitioning just like this one, but with elt added to the ith part
      */
-    Partitioning<T> addToPart(@NonNegative int i, T elt) {
+    private Partitioning<T> addToPart(@NonNegative int i, T elt) {
       Partitioning<T> result = new Partitioning<>(this);
       if (size() == i) {
         ArrayList<T> newPart = newArrayList(elt);
@@ -4180,7 +3998,10 @@ public final class ArraysPlume {
    * @param elt the element to put in the ArrayList
    * @return a singleton ArrayList containing {@code elt}
    */
-  @SuppressWarnings("NonApiType")
+  @SuppressWarnings({
+    "NonApiType",
+    // "PMD.LooseCoupling"
+  }) // TODO: document why ArrayList instead of List
   private static <T> ArrayList<T> newArrayList(T elt) {
     ArrayList<T> result = new ArrayList<>(1);
     result.add(elt);
@@ -4220,7 +4041,7 @@ public final class ArraysPlume {
    * which produces an array whose run-time type is {@code Object[]} even though its compile-time
    * type is {@code TO[]}. Import this method with
    *
-   * <pre>import static org.plumelib.util.ArraysPlume.mapArray;</pre>
+   * <pre>import static org.plumelib.util.ArraysP.mapArray;</pre>
    *
    * <p>To perform replacement in place, see {@link #replaceAll}.
    *
@@ -4238,9 +4059,8 @@ public final class ArraysPlume {
       TO[] mapArray(
           Function<? super FROM, ? extends TO> f, Iterable<FROM> iterable, Class<TO> toClass) {
 
-    if (iterable instanceof RandomAccess) {
+    if (iterable instanceof List<FROM> list && list instanceof RandomAccess) {
       // Per the Javadoc of RandomAccess, an indexed for loop is faster than a foreach loop.
-      List<FROM> list = (List<FROM>) iterable;
       int len = list.size();
       @SuppressWarnings("unchecked") // reflection
       TO[] result = (TO[]) Array.newInstance(toClass, len);
@@ -4265,17 +4085,21 @@ public final class ArraysPlume {
       return result;
     }
 
-    List<TO> resultList = CollectionsPlume.mapList(f, iterable);
-    int len = ((Collection<?>) iterable).size();
+    // iterable is not a Collection here, so its size is not known in advance; map it to a list and
+    // use that list's size.
+    List<TO> resultList = CollectionsP.mapList(f, iterable);
+    int len = resultList.size();
     @SuppressWarnings("unchecked") // reflection
     TO[] result = (TO[]) Array.newInstance(toClass, len);
+    // Copy elementwise rather than calling resultList.toArray(result), whose annotated return type
+    // permits trailing nulls and so is not assignable to TO[].
     for (int i = 0; i < result.length; i++) {
       result[i] = resultList.get(i);
     }
     return result;
 
     // This does not work, because the underlying array has Object[] type at run time.
-    // return (TO[]) ((List<TO>) CollectionsPlume.mapList(f, a)).toArray();
+    // return (TO[]) ((List<TO>) CollectionsP.mapList(f, a)).toArray();
   }
 
   /**
@@ -4294,7 +4118,7 @@ public final class ArraysPlume {
    * which produces an array whose run-time type is {@code Object[]} even though its compile-time
    * type is {@code TO[]}. Import this method with
    *
-   * <pre>import static org.plumelib.util.ArraysPlume.mapArray;</pre>
+   * <pre>import static org.plumelib.util.ArraysP.mapArray;</pre>
    *
    * <p>To perform replacement in place, see {@link #replaceAll}.
    *
@@ -4319,11 +4143,11 @@ public final class ArraysPlume {
     return result;
 
     // This does not work, because the underlying array has Object[] type at run time.
-    // return (TO[]) ((List<TO>) CollectionsPlume.mapList(f, a)).toArray();
+    // return (TO[]) ((List<TO>) CollectionsP.mapList(f, a)).toArray();
   }
 
   /**
-   * Replaces all occurrences of one specified value in a array with another. More formally,
+   * Replaces all occurrences of one specified value in an array with another. More formally,
    * replaces with newVal each element e in array such that (oldVal==null ? e==null :
    * oldVal.equals(e)). (This method has no effect on the size of the array.)
    *

@@ -6,9 +6,12 @@ import java.util.NoSuchElementException;
 import org.checkerframework.checker.collectionownership.qual.NotOwningCollection;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.modifiability.qual.Shrinkable;
+import org.checkerframework.checker.modifiability.qual.Unshrinkable;
 import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
+import org.checkerframework.dataflow.qual.SideEffectsOnly;
 
 /**
  * Given two sorted iterators, this class returns a new iterator that pairs equal elements of the
@@ -42,33 +45,33 @@ public class OrderedPairIterator<T extends @Nullable Object>
     implements Iterator<IPair<@Nullable T, @Nullable T>> {
 
   /** The iterator for first elements of pairs. */
-  Iterator<T> itor1;
+  private Iterator<T> itor1;
 
   /** The iterator for second elements of pairs. */
-  Iterator<T> itor2;
+  private Iterator<T> itor2;
 
   /** The next element to be read by itor1. */
-  @Nullable T next1;
+  private @Nullable T next1;
 
   /** The next element to be read by itor2. */
-  @Nullable T next2;
+  private @Nullable T next2;
 
   /**
    * The comparator to be used to compare elements from the two iterators, to determine whether they
    * match. Null to use the natural comparison.
    */
-  @Nullable Comparator<? super T> comparator;
+  private @Nullable Comparator<? super T> comparator;
 
   /**
-   * Create an iterator that returns pairs, where each pair contains has an element from each
-   * iterator and the two elements are equal.
+   * Creates an iterator that returns pairs, where each pair contains an element from each iterator
+   * and the two elements are equal.
    *
    * @param itor1 iterator for first elements of pairs
    * @param itor2 iterator for second elements of pairs
    */
   // For this constructor, the arg type is actually Iterator<T extends
   // Comparable<T>>, but T is already bound above and can't be changed.
-  public OrderedPairIterator(Iterator<T> itor1, Iterator<T> itor2) {
+  public @Unshrinkable OrderedPairIterator(Iterator<T> itor1, Iterator<T> itor2) {
     this.itor1 = itor1;
     this.itor2 = itor2;
     setnext1();
@@ -76,20 +79,22 @@ public class OrderedPairIterator<T extends @Nullable Object>
   }
 
   /**
-   * Create an iterator that returns pairs, where each pair contains has an element from each
-   * iterator and the two elements are equal according to the comparator.
+   * Creates an iterator that returns pairs, where each pair contains an element from each iterator
+   * and the two elements are equal according to the comparator.
    *
    * @param itor1 iterator for first elements of pairs
    * @param itor2 iterator for second elements of pairs
    * @param comparator determines whether two elements are equal and should be paired together
    */
-  public OrderedPairIterator(Iterator<T> itor1, Iterator<T> itor2, Comparator<T> comparator) {
+  public @Unshrinkable OrderedPairIterator(
+      Iterator<T> itor1, Iterator<T> itor2, Comparator<T> comparator) {
     this(itor1, itor2);
     this.comparator = comparator;
   }
 
   /** Set the next1 variable. */
   @RequiresNonNull("itor1")
+  @SideEffectsOnly("this")
   private void setnext1(
       @GuardSatisfied @UnknownInitialization @NotOwningCollection OrderedPairIterator<T> this) {
     next1 = itor1.hasNext() ? itor1.next() : null;
@@ -97,6 +102,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
 
   /** Set the next2 variable. */
   @RequiresNonNull("itor2")
+  @SideEffectsOnly("this")
   private void setnext2(
       @GuardSatisfied @UnknownInitialization @NotOwningCollection OrderedPairIterator<T> this) {
     next2 = itor2.hasNext() ? itor2.next() : null;
@@ -116,6 +122,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
    *
    * @return an element of the first iterator, paired with null
    */
+  @SideEffectsOnly("this")
   private @NotOwning IPair<@Nullable T, @Nullable T> return1(
       @GuardSatisfied @NotOwningCollection OrderedPairIterator<T> this) {
     IPair<@Nullable T, @Nullable T> result =
@@ -129,6 +136,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
    *
    * @return a pair of null and an element of the second iterator
    */
+  @SideEffectsOnly("this")
   private @NotOwning IPair<@Nullable T, @Nullable T> return2(
       @GuardSatisfied @NotOwningCollection OrderedPairIterator<T> this) {
     IPair<@Nullable T, @Nullable T> result =
@@ -142,6 +150,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
    *
    * @return a pair containing an element from each iterator
    */
+  @SideEffectsOnly("this")
   private @NotOwning IPair<@Nullable T, @Nullable T> returnboth(
       @GuardSatisfied @NotOwningCollection OrderedPairIterator<T> this) {
     IPair<@Nullable T, @Nullable T> result = IPair.<@Nullable T, @Nullable T>of(next1, next2);
@@ -151,6 +160,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
   }
 
   @Override
+  @SuppressWarnings("allcheckers:purity.unknown.sideeffectsonly") // Comparator.compare unannotated
   public @NotOwning IPair<@Nullable T, @Nullable T> next(
       @GuardSatisfied OrderedPairIterator<T> this) {
     if (next1 == null) {
@@ -187,7 +197,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
           } else if (next1 != null && next2 == null) {
             comparison = 1;
           } else {
-            throw new RuntimeException("this can't happen " + next1 + " " + next2);
+            throw new RuntimeException("this can't happen " + next1 + " " + next2, npe);
           }
         }
         if (comparison < 0) {
@@ -202,7 +212,7 @@ public class OrderedPairIterator<T extends @Nullable Object>
   }
 
   @Override
-  public void remove(@GuardSatisfied OrderedPairIterator<T> this) {
+  public void remove(@Shrinkable @GuardSatisfied OrderedPairIterator<T> this) {
     throw new UnsupportedOperationException();
   }
 }

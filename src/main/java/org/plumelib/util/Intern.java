@@ -30,13 +30,14 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
  */
 @SuppressWarnings({
   "identity", // use of Hasher for primitive wrappers
-  "PMD.UseDiamondOperator"
+  "PMD.UseDiamondOperator",
+  // "PMD.LooseCoupling", // explicit use of WeakHasherMap
 })
 public final class Intern {
 
   /** This class is a collection of methods; it does not represent anything. */
   private Intern() {
-    throw new Error("do not instantiate");
+    throw new UnsupportedOperationException("do not instantiate");
   }
 
   // //////////////////////////////////////////////////////////////////////
@@ -250,7 +251,6 @@ public final class Intern {
       return true;
     }
 
-    @SuppressWarnings("PMD.AvoidReassigningLoopVariables") // PMD is broken: elt isn't control var
     @Override
     public int hashCode(@UnknownSignedness Object o) {
       double[] a = (double[]) o;
@@ -410,7 +410,7 @@ public final class Intern {
    *
    * @return the number of interned integers
    */
-  static int numIntegers() {
+  /*package*/ static int numIntegers() {
     return internedIntegers.size();
   }
 
@@ -419,7 +419,7 @@ public final class Intern {
    *
    * @return the number of interned longs
    */
-  static int numLongs() {
+  /*package*/ static int numLongs() {
     return internedLongs.size();
   }
 
@@ -428,7 +428,7 @@ public final class Intern {
    *
    * @return the number of interned int arrays
    */
-  static int numIntArrays() {
+  /*package*/ static int numIntArrays() {
     return internedIntArrays.size();
   }
 
@@ -437,7 +437,7 @@ public final class Intern {
    *
    * @return the number of interned long arrays
    */
-  static int numLongArrays() {
+  /*package*/ static int numLongArrays() {
     return internedLongArrays.size();
   }
 
@@ -446,7 +446,7 @@ public final class Intern {
    *
    * @return the number of interned doubles
    */
-  static int numDoubles() {
+  /*package*/ static int numDoubles() {
     return internedDoubles.size();
   }
 
@@ -455,7 +455,7 @@ public final class Intern {
    *
    * @return the number of interned double arrays
    */
-  static int numDoubleArrays() {
+  /*package*/ static int numDoubleArrays() {
     return internedDoubleArrays.size();
   }
 
@@ -464,7 +464,7 @@ public final class Intern {
    *
    * @return the number of interned string arrays
    */
-  static int numStringArrays() {
+  /*package*/ static int numStringArrays() {
     return internedStringArrays.size();
   }
 
@@ -473,7 +473,7 @@ public final class Intern {
    *
    * @return the number of interned object arrays
    */
-  static int numObjectArrays() {
+  /*package*/ static int numObjectArrays() {
     return internedObjectArrays.size();
   }
 
@@ -482,7 +482,7 @@ public final class Intern {
    *
    * @return all the interned integers
    */
-  static Iterator<@Interned Integer> integers() {
+  /*package*/ static Iterator<@Interned Integer> integers() {
     return internedIntegers.keySet().iterator();
   }
 
@@ -491,7 +491,7 @@ public final class Intern {
    *
    * @return all the interned longs
    */
-  static Iterator<@Interned Long> longs() {
+  /*package*/ static Iterator<@Interned Long> longs() {
     return internedLongs.keySet().iterator();
   }
 
@@ -500,7 +500,7 @@ public final class Intern {
    *
    * @return all the interned int arrays
    */
-  static Iterator<int @Interned []> intArrays() {
+  /*package*/ static Iterator<int @Interned []> intArrays() {
     return internedIntArrays.keySet().iterator();
   }
 
@@ -509,7 +509,7 @@ public final class Intern {
    *
    * @return all the interned long arrays
    */
-  static Iterator<long @Interned []> longArrays() {
+  /*package*/ static Iterator<long @Interned []> longArrays() {
     return internedLongArrays.keySet().iterator();
   }
 
@@ -518,7 +518,7 @@ public final class Intern {
    *
    * @return all the interned doubles
    */
-  static Iterator<@Interned Double> doubles() {
+  /*package*/ static Iterator<@Interned Double> doubles() {
     return internedDoubles.keySet().iterator();
   }
 
@@ -527,7 +527,7 @@ public final class Intern {
    *
    * @return all the interned double arrays
    */
-  static Iterator<double @Interned []> doubleArrays() {
+  /*package*/ static Iterator<double @Interned []> doubleArrays() {
     return internedDoubleArrays.keySet().iterator();
   }
 
@@ -536,7 +536,7 @@ public final class Intern {
    *
    * @return all the interned string arrays
    */
-  static Iterator<@Nullable @Interned String @Interned []> stringArrays() {
+  /*package*/ static Iterator<@Nullable @Interned String @Interned []> stringArrays() {
     return internedStringArrays.keySet().iterator();
   }
 
@@ -545,7 +545,7 @@ public final class Intern {
    *
    * @return all the interned object arrays
    */
-  static Iterator<@Nullable @Interned Object @Interned []> objectArrays() {
+  /*package*/ static Iterator<@Nullable @Interned Object @Interned []> objectArrays() {
     return internedObjectArrays.keySet().iterator();
   }
 
@@ -575,7 +575,7 @@ public final class Intern {
   }
 
   /**
-   * Interns a double A no-op. Provided for completeness.
+   * Interns a double. A no-op. Provided for completeness.
    *
    * @param d the double to intern
    * @return an interned version of the argument
@@ -586,7 +586,7 @@ public final class Intern {
   }
 
   /**
-   * Intern (canonicalize) an Integer. Return a canonical representation for the Integer.
+   * Interns (canonicalizes) an Integer. Returns a canonical representation for the Integer.
    *
    * @param a an Integer to canonicalize
    * @return a canonical representation for the Integer
@@ -632,7 +632,7 @@ public final class Intern {
   }
 
   /**
-   * Intern (canonicalize) a Long. Return a canonical representation for the Long.
+   * Interns (canonicalizes) a Long. Returns a canonical representation for the Long.
    *
    * @param a the value to intern
    * @return a canonical representation for the Long
@@ -683,8 +683,8 @@ public final class Intern {
   // that really improve performance even in that case?)
 
   /**
-   * Intern (canonicalize) an int[]. Return a canonical representation for the int[] array. Arrays
-   * are compared according to their elements.
+   * Interns (canonicalizes) an int[]. Returns a canonical representation for the int[] array.
+   * Arrays are compared according to their elements.
    *
    * @param a the array to canonicalize
    * @return a canonical representation for the int[] array
@@ -714,8 +714,8 @@ public final class Intern {
   }
 
   /**
-   * Intern (canonicalize) a long[]. Return a canonical representation for the long[] array. Arrays
-   * are compared according to their elements.
+   * Interns (canonicalizes) a long[]. Returns a canonical representation for the long[] array.
+   * Arrays are compared according to their elements.
    *
    * @param a the array to canonicalize
    * @return a canonical representation for the long[] array
@@ -743,7 +743,7 @@ public final class Intern {
   }
 
   /**
-   * Intern (canonicalize) a Double. Return a canonical representation for the Double.
+   * Interns (canonicalizes) a Double. Returns a canonical representation for the Double.
    *
    * @param a the Double to canonicalize
    * @return a canonical representation for the Double
@@ -754,7 +754,7 @@ public final class Intern {
   @SuppressWarnings({"interning", "allcheckers:purity", "lock"})
   @Pure
   public static @Interned Double intern(Double a) {
-    // Double.NaN == Double.Nan  always evaluates to false.
+    // Double.NaN == Double.NaN  always evaluates to false.
     if (a.isNaN()) {
       return internedDoubleNaN;
     }
@@ -802,7 +802,7 @@ public final class Intern {
   // that really improve performance even in that case?)
 
   /**
-   * Intern (canonicalize) a double[]. Return a canonical representation for the double[] array.
+   * Interns (canonicalizes) a double[]. Returns a canonical representation for the double[] array.
    * Arrays are compared according to their elements.
    *
    * @param a the array to canonicalize
@@ -831,7 +831,7 @@ public final class Intern {
   /**
    * Returns true if each element is interned.
    *
-   * @param a an array whose elements should already be intterned
+   * @param a an array whose elements should already be interned
    * @return true if each element is interned
    */
   @SuppressWarnings("PMD.UseEqualsToCompareStrings")
@@ -845,7 +845,7 @@ public final class Intern {
   }
 
   /**
-   * Intern (canonicalize) a String[]. Return a canonical representation for the String[] array.
+   * Interns (canonicalizes) a String[]. Returns a canonical representation for the String[] array.
    * Arrays are compared according to their elements' equals() methods.
    *
    * @param a the array to canonicalize. Its elements should already be interned.
@@ -887,7 +887,7 @@ public final class Intern {
   }
 
   /**
-   * Intern (canonicalize) an Object[]. Return a canonical representation for the Object[] array.
+   * Interns (canonicalizes) an Object[]. Returns a canonical representation for the Object[] array.
    * Arrays are compared according to their elements. The elements should themselves already be
    * interned; they are compared using their equals() methods.
    *
@@ -986,7 +986,7 @@ public final class Intern {
     if (result1 != null) {
       return result1;
     } else {
-      int[] subseqUninterned = ArraysPlume.subarray(seq, start, end - start);
+      int[] subseqUninterned = ArraysP.subarray(seq, start, end - start);
       int @Interned [] subseq = intern(subseqUninterned);
       internedIntSubsequence.put(sai, new WeakReference<>(subseq));
       return subseq;
@@ -1015,7 +1015,7 @@ public final class Intern {
     if (result1 != null) {
       return result1;
     } else {
-      long[] subseqUninterned = ArraysPlume.subarray(seq, start, end - start);
+      long[] subseqUninterned = ArraysP.subarray(seq, start, end - start);
       long @Interned [] subseq = intern(subseqUninterned);
       internedLongSubsequence.put(sai, new WeakReference<>(subseq));
       return subseq;
@@ -1044,7 +1044,7 @@ public final class Intern {
     if (result1 != null) {
       return result1;
     } else {
-      double[] subseqUninterned = ArraysPlume.subarray(seq, start, end - start);
+      double[] subseqUninterned = ArraysP.subarray(seq, start, end - start);
       double @Interned [] subseq = intern(subseqUninterned);
       internedDoubleSubsequence.put(sai, new WeakReference<>(subseq));
       return subseq;
@@ -1076,7 +1076,7 @@ public final class Intern {
     if (result1 != null) {
       return result1;
     } else {
-      @PolyNull @Interned Object[] subseqUninterned = ArraysPlume.subarray(seq, start, end - start);
+      @PolyNull @Interned Object[] subseqUninterned = ArraysP.subarray(seq, start, end - start);
       @PolyNull @Interned Object @Interned [] subseq = intern(subseqUninterned);
       @SuppressWarnings({
         "nullness", // safe because map does no side effects
@@ -1113,7 +1113,7 @@ public final class Intern {
     if (result1 != null) {
       return result1;
     } else {
-      @PolyNull @Interned String[] subseqUninterned = ArraysPlume.subarray(seq, start, end - start);
+      @PolyNull @Interned String[] subseqUninterned = ArraysP.subarray(seq, start, end - start);
       @PolyNull @Interned String @Interned [] subseq = intern(subseqUninterned);
       @SuppressWarnings({
         "nullness", // safe because map does no side effects
@@ -1134,14 +1134,14 @@ public final class Intern {
    */
   private static final class Subsequence<T extends @Interned Object> {
     /** The full sequence. The Subsequence object represents part of this sequence. */
-    public T seq;
+    public final T seq;
 
     /** The start index, inclusive. */
-    public @NonNegative int start;
+    public final @NonNegative int start;
 
     // TODO: inclusive or exclusive?
     /** The end index. */
-    public int end;
+    public final int end;
 
     /**
      * Creates a subsequence view.
@@ -1191,7 +1191,7 @@ public final class Intern {
     @SideEffectFree
     @Override
     public String toString(@GuardSatisfied Subsequence<T> this) {
-      return "SAI(" + start + "," + end + ") from: " + ArraysPlume.toString(seq);
+      return "SAI(" + start + "," + end + ") from: " + ArraysP.toString(seq);
     }
   }
 

@@ -10,6 +10,8 @@ import org.checkerframework.checker.index.qual.LessThan;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.index.qual.PolyUpperBound;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.modifiability.qual.Shrinkable;
+import org.checkerframework.checker.modifiability.qual.Unshrinkable;
 import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -21,11 +23,11 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
 /** Mathematical utilities. */
-public final class MathPlume {
+public final class MathP {
 
   /** This class is a collection of methods; it does not represent anything. */
-  private MathPlume() {
-    throw new Error("do not instantiate");
+  private MathP() {
+    throw new UnsupportedOperationException("do not instantiate");
   }
 
   //
@@ -173,7 +175,7 @@ public final class MathPlume {
   /**
    * Returns x % y, the modulus operation applied to its arguments.
    *
-   * @param x valued to be modded
+   * @param x value to be modded
    * @param y modulus
    * @return x % y
    */
@@ -186,7 +188,7 @@ public final class MathPlume {
   /**
    * Returns x % y, the modulus operation applied to its arguments.
    *
-   * @param x valued to be modded
+   * @param x value to be modded
    * @param y modulus
    * @return x % y
    */
@@ -199,7 +201,7 @@ public final class MathPlume {
   /**
    * Returns x &lt;&lt; y, the left-shift operation applied to its arguments.
    *
-   * @param x valued to be left-shifted
+   * @param x value to be left-shifted
    * @param y magnitude of the left-shift
    * @return x &lt;&lt; y
    */
@@ -212,7 +214,7 @@ public final class MathPlume {
   /**
    * Returns x &lt;&lt; y, the left-shift operation applied to its arguments.
    *
-   * @param x valued to be left-shifted
+   * @param x value to be left-shifted
    * @param y magnitude of the left-shift
    * @return x &lt;&lt; y
    */
@@ -225,7 +227,7 @@ public final class MathPlume {
   /**
    * Returns x &gt;&gt; y, the signed right-shift operation applied to its arguments.
    *
-   * @param x valued to be right-shifted
+   * @param x value to be right-shifted
    * @param y magnitude of the right-shift
    * @return x &gt;&gt; y
    */
@@ -238,7 +240,7 @@ public final class MathPlume {
   /**
    * Returns x &gt;&gt; y, the signed right-shift operation applied to its arguments.
    *
-   * @param x valued to be right-shifted
+   * @param x value to be right-shifted
    * @param y magnitude of the right-shift
    * @return x &gt;&gt; y
    */
@@ -251,7 +253,7 @@ public final class MathPlume {
   /**
    * Returns x &gt;&gt;&gt; y, the unsigned right-shift operation applied to its arguments.
    *
-   * @param x valued to be right-shifted
+   * @param x value to be right-shifted
    * @param y magnitude of the right-shift
    * @return x &gt;&gt;&gt; y
    */
@@ -264,7 +266,7 @@ public final class MathPlume {
   /**
    * Returns x &gt;&gt;&gt; y, the unsigned right-shift operation applied to its arguments.
    *
-   * @param x valued to be right-shifted
+   * @param x value to be right-shifted
    * @param y magnitude of the right-shift
    * @return x &gt;&gt;&gt; y
    */
@@ -457,7 +459,7 @@ public final class MathPlume {
   //
 
   /**
-   * Returns of value of the first argument raised to the power of the second argument. The
+   * Returns the value of the first argument raised to the power of the second argument. The
    * arguments are integers.
    *
    * @param base the base
@@ -472,7 +474,7 @@ public final class MathPlume {
   }
 
   /**
-   * Returns of value of the first argument raised to the power of the second argument.
+   * Returns the value of the first argument raised to the power of the second argument.
    *
    * @param base the base
    * @param expt the exponent
@@ -486,7 +488,7 @@ public final class MathPlume {
   }
 
   /**
-   * Returns of value of the first argument raised to the power of the second argument. Uses a fast
+   * Returns the value of the first argument raised to the power of the second argument. Uses a fast
    * algorithm.
    *
    * @param base the base
@@ -501,14 +503,11 @@ public final class MathPlume {
       throw new ArithmeticException("Negative exponent passed to pow");
     }
 
-    int thisSquarePow = base;
     int result = 1;
-    while (expt > 0) {
+    for (int thisSquarePow = base; expt > 0; expt >>= 1, thisSquarePow *= thisSquarePow) {
       if ((expt & 1) != 0) {
         result *= thisSquarePow;
       }
-      expt >>= 1;
-      thisSquarePow *= thisSquarePow;
     }
     return result;
   }
@@ -528,14 +527,11 @@ public final class MathPlume {
       throw new ArithmeticException("Negative exponent passed to pow");
     }
 
-    long thisSquarePow = base;
     long result = 1;
-    while (expt > 0) {
+    for (long thisSquarePow = base; expt > 0; expt >>= 1, thisSquarePow *= thisSquarePow) {
       if ((expt & 1) != 0) {
         result *= thisSquarePow;
       }
-      expt >>= 1;
-      thisSquarePow *= thisSquarePow;
     }
     return result;
   }
@@ -793,25 +789,6 @@ public final class MathPlume {
   //
 
   /**
-   * Returns z such that {@code (z == x mod y) && (0 <= z < abs(y))}. This should really be named
-   * {@code modNonnegative} rather than {@code modPositive}.
-   *
-   * @param x value to be modded
-   * @param y modulus
-   * @return x % y, where the result is constrained to be non-negative
-   * @deprecated use {@link #modNonnegative(int, int)}
-   */
-  @Deprecated(since = "2020-02-20")
-  // @InlineMe(replacement = "MathPlume.modNonnegative(x, y)", imports =
-  // "org.plumelib.util.MathPlume")
-  @Pure
-  @StaticallyExecutable
-  public static @NonNegative @LessThan("#2") @PolyUpperBound int modPositive(
-      int x, @PolyUpperBound int y) {
-    return modNonnegative(x, y);
-  }
-
-  /**
    * Returns z such that {@code (z == x mod y) && (0 <= z < abs(y))}.
    *
    * @param x value to be modded
@@ -911,7 +888,8 @@ public final class MathPlume {
    * largest possible modulus is used, and the trivial constraint that all integers are equal to 0
    * mod 1 is not returned (null is returned instead).
    *
-   * <p>This "Strict" version requires its input to be sorted, and no element may be missing.
+   * <p>This "Strict" version requires its input to be sorted, in either increasing or decreasing
+   * order, and no element may be missing. The returned modulus is positive either way.
    *
    * <p>This "Strict" version differs from the regular modulus by requiring that the argument be
    * dense: that is, every pair of numbers in the argument array is separated by exactly the
@@ -922,10 +900,14 @@ public final class MathPlume {
    *
    * @param nums array of operands
    * @param nonstrictEnds true if endpoints are NOT subject to the strict density requirement
-   * @return an array of two integers (r,m) such that each number in NUMS is equal to r (mod m), or
-   *     null if no such exists or the array contains fewer than 3 elements
+   * @return an array of two integers (r,m), where m is positive, such that each number in NUMS is
+   *     equal to r (mod m); or null if no such exists or the array contains fewer than 3 elements
    */
-  @SuppressWarnings("value:statically.executable.not.pure") // results are .equals() but not ==
+  @SuppressWarnings({
+    "value:statically.executable.not.pure", // results are .equals() but not ==
+    "allcheckers:purity.call", // side effect to local state (fresh iterator)
+    "lock:method.guarantee.violated", // side effect to local state (fresh iterator)
+  })
   @SideEffectFree
   @StaticallyExecutable
   public static int @Nullable @ArrayLen(2) [] modulusStrict(int[] nums, boolean nonstrictEnds) {
@@ -944,11 +926,22 @@ public final class MathPlume {
       lastIndex--;
     }
     if (lastIndex - firstIndex < 2) {
+      // Fewer than 3 elements are subject to the strict density requirement, so that requirement
+      // is vacuous.  Delegate to `modulusStrictInt`, which handles this case, so that the array
+      // and iterator implementations cannot diverge.  (This branch is unreachable when
+      // `nonstrictEnds` is false, because then `lastIndex - firstIndex` is `nums.length - 1`.)
+      if (nonstrictEnds) {
+        return modulusStrictInt(Arrays.stream(nums).boxed().iterator(), true);
+      }
       return null;
     }
 
     int modulus = nums[firstIndex + 1] - nums[firstIndex];
-    if (modulus == 1) {
+    // A modulus of 0 would cause a division by zero.  A modulus of 1 or -1 is the trivial
+    // constraint that every integer is 0 mod 1, which this method does not report.
+    // Integer.MIN_VALUE has no positive counterpart, so `Math.abs` below could not make it
+    // positive.
+    if (modulus == 0 || modulus == 1 || modulus == -1 || modulus == Integer.MIN_VALUE) {
       return null;
     }
     for (int i = firstIndex + 2; i <= lastIndex; i++) {
@@ -956,6 +949,10 @@ public final class MathPlume {
         return null;
       }
     }
+
+    // Report a positive modulus, as `modulus(int[])` does.  Congruence modulo m and modulo -m are
+    // the same relation, so this does not change which inputs are accepted, nor the value of r.
+    modulus = Math.abs(modulus);
 
     int r = modNonnegative(nums[firstIndex], modulus);
     if (nonstrictEnds) {
@@ -977,8 +974,9 @@ public final class MathPlume {
    *
    * @param itor iterator of operands; modified by this method
    * @param nonstrictEnds true if endpoints are NOT subject to the strict density requirement
-   * @return an array of two integers (r,m) such that each number in NUMS is equal to r (mod m), or
-   *     null if no such exists or the iterator contains fewer than 3 elements
+   * @return an array of two integers (r,m), where m is positive, such that each number in NUMS is
+   *     equal to r (mod m); or null if no such exists or the iterator contains fewer than 3
+   *     elements
    * @see #modulusStrict(int[], boolean)
    */
   public static int @Nullable @ArrayLen(2) [] modulusStrictInt(
@@ -988,7 +986,6 @@ public final class MathPlume {
     }
 
     int firstNonstrict = 0; // arbitrary initial value
-    @SuppressWarnings("PMD.PrematureDeclaration") // put firstNonstrict and lastNonstrict together
     int lastNonstrict = 0; // arbitrary initial value
     if (nonstrictEnds) {
       firstNonstrict = itor.next();
@@ -1003,9 +1000,6 @@ public final class MathPlume {
     }
     int next = itor.next();
     int modulus = next - prev;
-    if (modulus == 1) {
-      return null;
-    }
     int count = 2;
     while (itor.hasNext()) {
       prev = next;
@@ -1021,10 +1015,50 @@ public final class MathPlume {
       count++;
     }
     if (count < 3) {
+      // Fewer than 3 elements are subject to the strict density requirement, so fall back to the
+      // non-strict computation over the 4 elements that were seen.  (`count` is at least 2, because
+      // it is initialized to 2 and is only incremented.)  This mirrors `modulusStrictLong`.
+      //
+      // `prev - modulus` reconstructs the element before `prev`.  When the input has 4 elements,
+      // that is the genuine second element.  When the input has only 3 elements, the loop above
+      // never ran, so `prev - modulus` is a value that does not appear in the input.  That is
+      // harmless: its difference from each other element is an integer combination of differences
+      // that are already present, so it does not change the gcd that `modulusInt` computes, and
+      // hence changes neither the returned modulus nor the returned remainder.
+      if (nonstrictEnds) {
+        int[] result =
+            modulusInt(
+                Arrays.stream(new Integer[] {firstNonstrict, prev - modulus, prev, next})
+                    .iterator());
+        // `modulusInt` can return a non-positive modulus when a difference overflows.  This
+        // method promises a positive modulus, so report failure rather than a bogus answer.
+        if (result != null && result[1] <= 0) {
+          return null;
+        }
+        return result;
+      }
       return null;
     }
 
-    int r = modNonnegative(next, modulus);
+    // A modulus of 0 would cause a division by zero.  A modulus of 1 or -1 is the trivial
+    // constraint that every integer is 0 mod 1, which this method does not report.
+    // Integer.MIN_VALUE has no positive counterpart, so `Math.abs` below could not make it
+    // positive.  This test comes after the `count < 3` fallback, which never uses `modulus` as a
+    // divisor: when the strict density requirement is vacuous, an inferred step of 0, 1, or -1
+    // must not veto the non-strict computation, which may still find a modulus.  For example,
+    // {3, 7, 7, 11} with nonstrict ends infers a step of 0 from the two strict elements, but the
+    // non-strict computation over all four elements yields (3, 4).
+    if (modulus == 0 || modulus == 1 || modulus == -1 || modulus == Integer.MIN_VALUE) {
+      return null;
+    }
+
+    // Report a positive modulus, as `modulus(int[])` does.  Congruence modulo m and modulo -m are
+    // the same relation, so this does not change which inputs are accepted, nor the value of r.
+    modulus = Math.abs(modulus);
+
+    // Use `prev`, a strict element: when `nonstrictEnds`, the loop broke with `next` holding the
+    // (nonstrict) last endpoint, which is the element to check, not the one that defines r.
+    int r = modNonnegative(prev, modulus);
     if (nonstrictEnds) {
       if ((r != modNonnegative(firstNonstrict, modulus))
           || (r != modNonnegative(lastNonstrict, modulus))) {
@@ -1036,25 +1070,6 @@ public final class MathPlume {
   }
 
   // modulus for long (as opposed to int) values
-
-  /**
-   * Returns z such that {@code (z == x mod y) && (0 <= z < abs(y))}. This should really be named
-   * {@code modNonnegative} rather than {@code modPositive}.
-   *
-   * @param x value to be modded
-   * @param y modulus
-   * @return x % y, where the result is constrained to be non-negative
-   * @deprecated use {@link #modNonnegative(long, long)}
-   */
-  @Deprecated(since = "2020-02-20")
-  // @InlineMe(replacement = "modNonnegative(x, y)", imports =
-  // "org.plumelib.util.MathPlume")
-  @Pure
-  @StaticallyExecutable
-  public static @NonNegative @LessThan("#2") @PolyUpperBound long modPositive(
-      long x, @PolyUpperBound long y) {
-    return modNonnegative(x, y);
-  }
 
   /**
    * Returns z such that {@code (z == x mod y) && (0 <= z < abs(y))}.
@@ -1156,7 +1171,8 @@ public final class MathPlume {
    * largest possible modulus is used, and the trivial constraint that all integers are equal to 0
    * mod 1 is not returned (null is returned instead).
    *
-   * <p>This "Strict" version requires its input to be sorted, and no element may be missing.
+   * <p>This "Strict" version requires its input to be sorted, in either increasing or decreasing
+   * order, and no element may be missing. The returned modulus is positive either way.
    *
    * <p>This "Strict" version differs from the regular modulus by requiring that the argument be
    * dense: that is, every pair of numbers in the argument array is separated by exactly the
@@ -1167,10 +1183,14 @@ public final class MathPlume {
    *
    * @param nums array of operands
    * @param nonstrictEnds true if endpoints are NOT subject to the strict density requirement
-   * @return an array of two integers (r,m) such that each number in NUMS is equal to r (mod m), or
-   *     null if no such exists or the array contains fewer than 3 elements
+   * @return an array of two integers (r,m), where m is positive, such that each number in NUMS is
+   *     equal to r (mod m); or null if no such exists or the array contains fewer than 3 elements
    */
-  @SuppressWarnings("value:statically.executable.not.pure") // results are .equals() but not ==
+  @SuppressWarnings({
+    "value:statically.executable.not.pure", // results are .equals() but not ==
+    "allcheckers:purity.call", // side effect to local state (fresh iterator)
+    "lock:method.guarantee.violated", // side effect to local state (fresh iterator)
+  })
   @SideEffectFree
   @StaticallyExecutable
   public static long @Nullable @ArrayLen(2) [] modulusStrict(long[] nums, boolean nonstrictEnds) {
@@ -1189,11 +1209,21 @@ public final class MathPlume {
       lastIndex--;
     }
     if (lastIndex - firstIndex < 2) {
+      // Fewer than 3 elements are subject to the strict density requirement, so that requirement
+      // is vacuous.  Delegate to `modulusStrictLong`, which handles this case, so that the array
+      // and iterator implementations cannot diverge.  (This branch is unreachable when
+      // `nonstrictEnds` is false, because then `lastIndex - firstIndex` is `nums.length - 1`.)
+      if (nonstrictEnds) {
+        return modulusStrictLong(Arrays.stream(nums).boxed().iterator(), true);
+      }
       return null;
     }
 
     long modulus = nums[firstIndex + 1] - nums[firstIndex];
-    if (modulus == 1) {
+    // A modulus of 0 would cause a division by zero.  A modulus of 1 or -1 is the trivial
+    // constraint that every integer is 0 mod 1, which this method does not report.
+    // Long.MIN_VALUE has no positive counterpart, so `Math.abs` below could not make it positive.
+    if (modulus == 0 || modulus == 1 || modulus == -1 || modulus == Long.MIN_VALUE) {
       return null;
     }
     for (int i = firstIndex + 2; i <= lastIndex; i++) {
@@ -1201,6 +1231,10 @@ public final class MathPlume {
         return null;
       }
     }
+
+    // Report a positive modulus, as `modulus(long[])` does.  Congruence modulo m and modulo -m are
+    // the same relation, so this does not change which inputs are accepted, nor the value of r.
+    modulus = Math.abs(modulus);
 
     long r = modNonnegative(nums[firstIndex], modulus);
     if (nonstrictEnds) {
@@ -1222,9 +1256,10 @@ public final class MathPlume {
    *
    * @param itor iterator of operands; modified by this method
    * @param nonstrictEnds true if endpoints are NOT subject to the strict density requirement
-   * @return an array of two integers (r,m) such that each number in NUMS is equal to r (mod m), or
-   *     null if no such exists or the iterator contains fewer than 3 elements
-   * @see #modulusStrict(int[], boolean)
+   * @return an array of two integers (r,m), where m is positive, such that each number in NUMS is
+   *     equal to r (mod m); or null if no such exists or the iterator contains fewer than 3
+   *     elements
+   * @see #modulusStrict(long[], boolean)
    */
   public static long @Nullable @ArrayLen(2) [] modulusStrictLong(
       Iterator<Long> itor, boolean nonstrictEnds) {
@@ -1233,7 +1268,6 @@ public final class MathPlume {
     }
 
     long firstNonstrict = 0; // arbitrary initial value
-    @SuppressWarnings("PMD.PrematureDeclaration") // put firstNonstrict and lastNonstrict together
     long lastNonstrict = 0; // arbitrary initial value
     if (nonstrictEnds) {
       firstNonstrict = itor.next();
@@ -1248,9 +1282,6 @@ public final class MathPlume {
     }
     long next = itor.next();
     long modulus = next - prev;
-    if (modulus == 1 || modulus == 0) {
-      return null;
-    }
     int count = 2;
     while (itor.hasNext()) {
       prev = next;
@@ -1266,18 +1297,49 @@ public final class MathPlume {
       count++;
     }
     if (count < 3) {
+      // Fewer than 3 elements are subject to the strict density requirement, so fall back to the
+      // non-strict computation over the 4 elements that were seen.  (`count` is at least 2, because
+      // it is initialized to 2 and is only incremented.)  This mirrors `modulusStrictInt`.
+      //
+      // `prev - modulus` reconstructs the element before `prev`.  When the input has 4 elements,
+      // that is the genuine second element.  When the input has only 3 elements, the loop above
+      // never ran, so `prev - modulus` is a value that does not appear in the input.  That is
+      // harmless: its difference from each other element is an integer combination of differences
+      // that are already present, so it does not change the gcd that `modulusLong` computes, and
+      // hence changes neither the returned modulus nor the returned remainder.
       if (nonstrictEnds) {
-        if (count == 2) {
-          return modulusLong(
-              Arrays.stream(new Long[] {firstNonstrict, prev - modulus, prev, next}).iterator());
-        } else if (count == 1) {
-          return modulusLong(Arrays.stream(new Long[] {firstNonstrict, prev, next}).iterator());
+        long[] result =
+            modulusLong(
+                Arrays.stream(new Long[] {firstNonstrict, prev - modulus, prev, next}).iterator());
+        // `modulusLong` can return a non-positive modulus when a difference overflows.  This
+        // method promises a positive modulus, so report failure rather than a bogus answer.
+        if (result != null && result[1] <= 0) {
+          return null;
         }
+        return result;
       }
       return null;
     }
 
-    long r = modNonnegative(next, modulus);
+    // A modulus of 0 would cause a division by zero.  A modulus of 1 or -1 is the trivial
+    // constraint that every integer is 0 mod 1, which this method does not report.
+    // Long.MIN_VALUE has no positive counterpart, so `Math.abs` below could not make it positive.
+    // This test comes after the `count < 3` fallback, which never uses `modulus` as a divisor:
+    // when the strict density requirement is vacuous, an inferred step of 0, 1, or -1 must not
+    // veto the non-strict computation, which may still find a modulus.  For example,
+    // {3, 7, 7, 11} with nonstrict ends infers a step of 0 from the two strict elements, but the
+    // non-strict computation over all four elements yields (3, 4).
+    if (modulus == 0 || modulus == 1 || modulus == -1 || modulus == Long.MIN_VALUE) {
+      return null;
+    }
+
+    // Report a positive modulus, as `modulus(long[])` does.  Congruence modulo m and modulo -m are
+    // the same relation, so this does not change which inputs are accepted, nor the value of r.
+    modulus = Math.abs(modulus);
+
+    // Use `prev`, a strict element: when `nonstrictEnds`, the loop broke with `next` holding the
+    // (nonstrict) last endpoint, which is the element to check, not the one that defines r.
+    long r = modNonnegative(prev, modulus);
     if (nonstrictEnds) {
       if ((r != modNonnegative(firstNonstrict, modulus))
           || (r != modNonnegative(lastNonstrict, modulus))) {
@@ -1335,28 +1397,28 @@ public final class MathPlume {
    * is set, then the bracketing endpoints are also returned; otherwise, all returned values are
    * between the minimum and maximum of the original values.
    */
-  static final class MissingNumbersIteratorInt implements Iterator<Integer> {
+  /*package*/ static final class MissingNumbersIteratorInt implements Iterator<Integer> {
     // Exactly one of nums and numsItor is non-null.
     /** The numbers not to include in the iterator. */
-    int @MonotonicNonNull @MinLen(1) [] nums;
+    private int @MonotonicNonNull @MinLen(1) [] nums;
 
     /** The numbers not to include in the iterator. */
-    @MonotonicNonNull Iterator<Integer> numsItor;
+    private @MonotonicNonNull Iterator<Integer> numsItor;
 
     /** The current element of the numbers not to include in the iterator. */
-    int currentNonmissing;
+    private int currentNonmissing;
 
     /** The next element to be returned by the iterator. */
-    int currentMissing;
+    private int currentMissing;
 
     /** Used only if nums != null, in which case it is an index into nums. */
-    @IndexFor("nums") int currentIndex;
+    private @IndexFor("nums") int currentIndex;
 
     /**
      * If true, include the value just before the minimum excluded element and the value just after
      * the maximum excluded element.
      */
-    boolean addEnds;
+    private final boolean addEnds;
 
     /**
      * An iterator over all the numbers <b>not</b> in the argument array, but within its range.
@@ -1364,7 +1426,7 @@ public final class MathPlume {
      * @param nums a non-empty array
      * @param addEnds if true, include the bracketing endpoints
      */
-    MissingNumbersIteratorInt(int @MinLen(1) [] nums, boolean addEnds) {
+    private @Unshrinkable MissingNumbersIteratorInt(int @MinLen(1) [] nums, boolean addEnds) {
       this.addEnds = addEnds;
       { // avoid modifying parameter
         int[] numsCopy = new int[nums.length];
@@ -1388,7 +1450,7 @@ public final class MathPlume {
      * @param numsItor a non-empty iterator; it must return integers in sorted order
      * @param addEnds if true, include the bracketing endpoints
      */
-    MissingNumbersIteratorInt(Iterator<Integer> numsItor, boolean addEnds) {
+    /*package*/ @Unshrinkable MissingNumbersIteratorInt(Iterator<Integer> numsItor, boolean addEnds) {
       this.addEnds = addEnds;
       if (!numsItor.hasNext()) {
         throw new Error("No elements in numsItor");
@@ -1474,7 +1536,7 @@ public final class MathPlume {
     }
 
     @Override
-    public void remove(@GuardSatisfied MissingNumbersIteratorInt this) {
+    public void remove(@Shrinkable @GuardSatisfied MissingNumbersIteratorInt this) {
       throw new UnsupportedOperationException();
     }
   }
@@ -1496,7 +1558,7 @@ public final class MathPlume {
     if (nums.length == 0) {
       return null;
     }
-    int range = ArraysPlume.elementRange(nums);
+    int range = ArraysP.elementRange(nums);
     if (range > 65_536) {
       return null;
     }
@@ -1516,8 +1578,8 @@ public final class MathPlume {
     // Must not use regular modulus:  that can produce errors, eg
     // nonmodulusStrict({1,2,3,5,6,7,9,11}) => {0,2}.  Thus, use
     // modulusStrict.
-    CollectionsPlume.RemoveFirstAndLastIterator<Integer> missingNums =
-        new CollectionsPlume.RemoveFirstAndLastIterator<>(missing);
+    CollectionsP.RemoveFirstAndLastIterator<Integer> missingNums =
+        new CollectionsP.RemoveFirstAndLastIterator<>(missing);
     int[] result = modulusStrictInt(missingNums, false);
     if (result == null) {
       return result;
@@ -1539,7 +1601,7 @@ public final class MathPlume {
    */
   @SuppressWarnings("deprecation") // to be made package-private
   private static boolean checkFirstAndLastNonmodulus(
-      int @ArrayLen(2) [] rm, CollectionsPlume.RemoveFirstAndLastIterator<Integer> rfali) {
+      int @ArrayLen(2) [] rm, CollectionsP.RemoveFirstAndLastIterator<Integer> rfali) {
     int r = rm[0];
     int m = rm[1];
     int first = rfali.getFirst();
@@ -1571,7 +1633,7 @@ public final class MathPlume {
   //   if (nums.length == 0) {
   //     return null;
   //   }
-  //   int range = ArraysPlume.elementRange(nums);
+  //   int range = ArraysP.elementRange(nums);
   //   if (range > 65536) {
   //     return null;
   //   }
@@ -1588,24 +1650,26 @@ public final class MathPlume {
    */
   // This seems to give too many false positives (or maybe my probability
   // model was wrong); use nonmodulusStrict instead.
-  @SuppressWarnings("allcheckers:purity")
+  @SuppressWarnings({
+    "allcheckers:purity",
+    // "PMD.AvoidInstantiatingObjectsInLoops" // can the algorithm avoid this cost?
+  })
   @Pure
   @StaticallyExecutable
   public static int @Nullable @ArrayLen(2) [] nonmodulusNonstrict(int[] nums) {
     if (nums.length < 4) {
       return null;
     }
-    int maxModulus = Math.min(nums.length / 2, ArraysPlume.elementRange(nums) / 2);
+    int maxModulus = Math.min(nums.length / 2, ArraysP.elementRange(nums) / 2);
 
     // System.out.println("nums.length=" + nums.length + ", range=" +
-    // ArraysPlume.elementRange(nums) + ", maxModulus=" + maxModulus);
+    // ArraysP.elementRange(nums) + ", maxModulus=" + maxModulus);
 
     // no real sense checking 2, as commonModulus would have found it, but
     // include it to make this function stand on its own
     for (int m = 2; m <= maxModulus; m++) {
       // System.out.println("Trying m=" + m);
-      @SuppressWarnings("PMD.LinguisticNaming") // array of boolean is OK
-      boolean[] hasModulus = new boolean[m]; // initialized to false?
+      boolean[] hasModulus = new boolean[m]; // initialized to false
       int numNonmodulus = m;
       for (int elt : nums) {
         @IndexFor("hasModulus") int rem = modNonnegative(elt, m);
@@ -1623,7 +1687,7 @@ public final class MathPlume {
       }
       // System.out.println("For m=" + m + ", numNonmodulus=" + numNonmodulus);
       if (numNonmodulus == 1) {
-        return new int[] {ArraysPlume.indexOf(hasModulus, false), m};
+        return new int[] {ArraysP.indexOf(hasModulus, false), m};
       }
     }
     return null;
@@ -1675,28 +1739,28 @@ public final class MathPlume {
    * is set, then the bracketing endpoints are also returned; otherwise, all returned values are
    * between the minimum and maximum of the original values.
    */
-  static final class MissingNumbersIteratorLong implements Iterator<Long> {
+  private static final class MissingNumbersIteratorLong implements Iterator<Long> {
     // Exactly one of nums and numsItor is non-null.
     /** The numbers not to include in the iterator. */
-    long @MonotonicNonNull @MinLen(1) [] nums;
+    private long @MonotonicNonNull @MinLen(1) [] nums;
 
     /** The numbers not to include in the iterator. */
-    @MonotonicNonNull Iterator<Long> numsItor;
+    private @MonotonicNonNull Iterator<Long> numsItor;
 
     /** The current element of the numbers not to include in the iterator. */
-    long currentNonmissing;
+    private long currentNonmissing;
 
     /** The next element to be returned by the iterator. */
-    long currentMissing;
+    private long currentMissing;
 
     /** Used only if nums != null, in which case it is an index into nums. */
-    @IndexFor("nums") int currentIndex;
+    private @IndexFor("nums") int currentIndex;
 
     /**
      * If true, include the value just before the minimum excluded element and the value just after
      * the maximum excluded element.
      */
-    boolean addEnds;
+    private final boolean addEnds;
 
     /**
      * An iterator over all the numbers <b>not</b> in its original argument array, but within its
@@ -1705,7 +1769,7 @@ public final class MathPlume {
      * @param nums a non-empty array
      * @param addEnds if true, include the bracketing endpoints
      */
-    MissingNumbersIteratorLong(long @MinLen(1) [] nums, boolean addEnds) {
+    private @Unshrinkable MissingNumbersIteratorLong(long @MinLen(1) [] nums, boolean addEnds) {
       this.addEnds = addEnds;
       { // avoid modifying parameter
         long[] numsCopy = new long[nums.length];
@@ -1729,7 +1793,7 @@ public final class MathPlume {
      * @param numsItor a non-empty array; must return longs in sorted order
      * @param addEnds if true, include the bracketing endpoints
      */
-    MissingNumbersIteratorLong(Iterator<Long> numsItor, boolean addEnds) {
+    private @Unshrinkable MissingNumbersIteratorLong(Iterator<Long> numsItor, boolean addEnds) {
       this.addEnds = addEnds;
       if (!numsItor.hasNext()) {
         throw new Error("No elements in numsItor");
@@ -1815,7 +1879,7 @@ public final class MathPlume {
     }
 
     @Override
-    public void remove(@GuardSatisfied MissingNumbersIteratorLong this) {
+    public void remove(@Shrinkable @GuardSatisfied MissingNumbersIteratorLong this) {
       throw new UnsupportedOperationException();
     }
   }
@@ -1837,7 +1901,7 @@ public final class MathPlume {
     if (nums.length == 0) {
       return null;
     }
-    long range = ArraysPlume.elementRange(nums);
+    long range = ArraysP.elementRange(nums);
     if (range > 65_536) {
       return null;
     }
@@ -1856,8 +1920,8 @@ public final class MathPlume {
     // Must not use regular modulus:  that can produce errors, eg
     // nonmodulusStrict({1,2,3,5,6,7,9,11}) => {0,2}.  Thus, use
     // modulusStrict.
-    CollectionsPlume.RemoveFirstAndLastIterator<Long> missingNums =
-        new CollectionsPlume.RemoveFirstAndLastIterator<>(missing);
+    CollectionsP.RemoveFirstAndLastIterator<Long> missingNums =
+        new CollectionsP.RemoveFirstAndLastIterator<>(missing);
     long[] result = modulusStrictLong(missingNums, false);
     if (result == null) {
       return result;
@@ -1870,17 +1934,17 @@ public final class MathPlume {
   }
 
   /**
-   * Returns true if the first and last elements are equal to r (mod m).
+   * Returns true if the first and last elements are not equal to r (mod m).
    *
    * @param rm an array containing two elements
    * @param rfali a sequence of numbers, plus a first and last element outside their range. This
    *     iterator has already been iterated all the way to its end.
-   * @return true if the first and last elements are equal to r (mod m)
+   * @return true if the first and last elements are not equal to r (mod m)
    */
   @SuppressWarnings("deprecation") // to be made package-private
   @Pure
   private static boolean checkFirstAndLastNonmodulus(
-      long @ArrayLen(2) [] rm, CollectionsPlume.RemoveFirstAndLastIterator<Long> rfali) {
+      long @ArrayLen(2) [] rm, CollectionsP.RemoveFirstAndLastIterator<Long> rfali) {
     long r = rm[0];
     long m = rm[1];
     long first = rfali.getFirst();
@@ -1912,7 +1976,7 @@ public final class MathPlume {
   //   if (nums.length == 0) {
   //     return null;
   //   }
-  //   long range = ArraysPlume.elementRange(nums);
+  //   long range = ArraysP.elementRange(nums);
   //   if (range > 65536) {
   //     return null;
   //   }
@@ -1936,17 +2000,16 @@ public final class MathPlume {
     if (nums.length < 4) {
       return null;
     }
-    int maxModulus = (int) Math.min(nums.length / 2, ArraysPlume.elementRange(nums) / 2);
+    int maxModulus = (int) Math.min(nums.length / 2, ArraysP.elementRange(nums) / 2);
 
     // System.out.println("nums.length=" + nums.length + ", range=" +
-    // ArraysPlume.elementRange(nums) + ", maxModulus=" + maxModulus);
+    // ArraysP.elementRange(nums) + ", maxModulus=" + maxModulus);
 
     // no real sense checking 2, as commonModulus would have found it, but
     // include it to make this function stand on its own
     for (int m = 2; m <= maxModulus; m++) {
       // System.out.println("Trying m=" + m);
-      @SuppressWarnings("PMD.LinguisticNaming") // array of boolean is OK
-      boolean[] hasModulus = new boolean[m]; // initialized to false?
+      boolean[] hasModulus = new boolean[m]; // initialized to false
       int numNonmodulus = m;
       for (long elt : nums) {
         @IndexFor("hasModulus") int rem = (int) modNonnegative(elt, m);
@@ -1964,7 +2027,7 @@ public final class MathPlume {
       }
       // System.out.println("For m=" + m + ", numNonmodulus=" + numNonmodulus);
       if (numNonmodulus == 1) {
-        return new long[] {ArraysPlume.indexOf(hasModulus, false), m};
+        return new long[] {ArraysP.indexOf(hasModulus, false), m};
       }
     }
     return null;

@@ -27,7 +27,7 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
  */
 public class LimitedSizeSet<T extends @Nullable Object> implements Serializable, Cloneable {
   /** Unique identifier for serialization. If you add or remove fields, change this number. */
-  static final long serialVersionUID = 20031021L;
+  private static final long serialVersionUID = 20031021L;
 
   // The size is not separately stored, because that would take extra space.
   /**
@@ -43,7 +43,7 @@ public class LimitedSizeSet<T extends @Nullable Object> implements Serializable,
   protected @IndexOrHigh("values") int numValues;
 
   /**
-   * Create a new LimitedSizeSet that can hold maxValues values.
+   * Creates a new LimitedSizeSet that can hold maxValues values.
    *
    * @param maxValues the maximum number of values this set will be able to hold; must be positive
    */
@@ -60,7 +60,7 @@ public class LimitedSizeSet<T extends @Nullable Object> implements Serializable,
   }
 
   /**
-   * Add an element to this set.
+   * Adds an element to this set.
    *
    * @param elt the element to add to this set
    */
@@ -81,7 +81,7 @@ public class LimitedSizeSet<T extends @Nullable Object> implements Serializable,
   }
 
   /**
-   * Add all elements of {@code s} to this set.
+   * Adds all elements of {@code s} to this set.
    *
    * @param s the elements to add to this set
    */
@@ -201,8 +201,7 @@ public class LimitedSizeSet<T extends @Nullable Object> implements Serializable,
     values = null;
   }
 
-  @SuppressWarnings(
-      "allcheckers:purity.not.sideeffectfree.assign.field") // side effect to local state (clone)
+  @SuppressWarnings("allcheckers:purity.assign.field") // side effect to local state (clone)
   @SideEffectFree
   @Override
   public LimitedSizeSet<T> clone(@GuardSatisfied LimitedSizeSet<T> this) {
@@ -212,7 +211,7 @@ public class LimitedSizeSet<T extends @Nullable Object> implements Serializable,
       LimitedSizeSet<T> resultAsLss = (LimitedSizeSet<T>) super.clone();
       result = resultAsLss;
     } catch (CloneNotSupportedException e) {
-      throw new Error(); // can't happen
+      throw new Error(e); // can't happen
     }
     if (values != null) {
       result.values = values.clone();

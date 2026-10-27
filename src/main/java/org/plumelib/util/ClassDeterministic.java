@@ -9,6 +9,7 @@ import java.util.Comparator;
 import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Deterministic versions of {@code java.lang.Class} methods, which return arrays in sorted order.
@@ -17,11 +18,11 @@ public final class ClassDeterministic {
 
   /** Do not call; this class is a collection of methods and does not represent anything. */
   private ClassDeterministic() {
-    throw new Error("do not instantiate");
+    throw new UnsupportedOperationException("do not instantiate");
   }
 
   /**
-   * Like {@link Class#getAnnotations()}, but returns the methods in deterministic order.
+   * Like {@link Class#getAnnotations()}, but returns the annotations in deterministic order.
    *
    * @param c the Class whose annotations to return
    * @return the class's annotations
@@ -33,7 +34,8 @@ public final class ClassDeterministic {
   }
 
   /**
-   * Like {@link Class#getDeclaredAnnotations()}, but returns the methods in deterministic order.
+   * Like {@link Class#getDeclaredAnnotations()}, but returns the annotations in deterministic
+   * order.
    *
    * @param c the Class whose declared annotations to return
    * @return the class's declared annotations
@@ -69,8 +71,8 @@ public final class ClassDeterministic {
   }
 
   /**
-   * Like {@link Class#getEnumConstants()}, but returns the methods in deterministic order. Returns
-   * null if the argument is not an enum class.
+   * Like {@link Class#getEnumConstants()}, but returns the enum constants in deterministic order.
+   * Returns null if the argument is not an enum class.
    *
    * @param <T> the class's type parameter
    * @param c the Class whose enum constants to return
@@ -86,7 +88,7 @@ public final class ClassDeterministic {
   }
 
   /**
-   * Like {@link Class#getConstructors()}, but returns the methods in deterministic order.
+   * Like {@link Class#getConstructors()}, but returns the constructors in deterministic order.
    *
    * @param c the Class whose constructors to return
    * @return the class's constructors
@@ -98,7 +100,8 @@ public final class ClassDeterministic {
   }
 
   /**
-   * Like {@link Class#getDeclaredConstructors()}, but returns the methods in deterministic order.
+   * Like {@link Class#getDeclaredConstructors()}, but returns the constructors in deterministic
+   * order.
    *
    * @param c the Class whose declared constructors to return
    * @return the class's declared constructors
@@ -110,7 +113,7 @@ public final class ClassDeterministic {
   }
 
   /**
-   * Like {@link Class#getFields()}, but returns the methods in deterministic order.
+   * Like {@link Class#getFields()}, but returns the fields in deterministic order.
    *
    * @param c the Class whose fields to return
    * @return the class's fields
@@ -122,7 +125,7 @@ public final class ClassDeterministic {
   }
 
   /**
-   * Like {@link Class#getDeclaredFields()}, but returns the methods in deterministic order.
+   * Like {@link Class#getDeclaredFields()}, but returns the fields in deterministic order.
    *
    * @param c the Class whose declared fields to return
    * @return the class's declared fields
@@ -175,7 +178,7 @@ public final class ClassDeterministic {
   // }
 
   /** Compares Annotation objects by type name. */
-  static AnnotationComparator annotationComparator = new AnnotationComparator();
+  private static AnnotationComparator annotationComparator = new AnnotationComparator();
 
   /** Compares Annotation objects by type name. */
   private static class AnnotationComparator implements Comparator<Annotation> {
@@ -184,13 +187,14 @@ public final class ClassDeterministic {
     public AnnotationComparator() {}
 
     @Override
+    @Pure
     public int compare(Annotation a1, Annotation a2) {
       return classComparator.compare(a1.annotationType(), a2.annotationType());
     }
   }
 
   /** Compares Class objects by fully-qualified name. */
-  static ClassComparator classComparator = new ClassComparator();
+  private static ClassComparator classComparator = new ClassComparator();
 
   /** Compares Class objects by fully-qualified name. */
   private static class ClassComparator implements Comparator<Class<?>> {
@@ -199,6 +203,7 @@ public final class ClassDeterministic {
     public ClassComparator() {}
 
     @Override
+    @Pure
     public int compare(Class<?> c1, Class<?> c2) {
       return c1.getName().compareTo(c2.getName());
     }
@@ -208,7 +213,7 @@ public final class ClassDeterministic {
    * Compares Method objects by signature: compares name, number of parameters, parameter type
    * names, declaring class, and return type (which is necessary to distinguish bridge methods).
    */
-  static MethodComparator methodComparator = new MethodComparator();
+  private static MethodComparator methodComparator = new MethodComparator();
 
   /**
    * Compares Method objects by signature: compares name, number of parameters, parameter type
@@ -219,14 +224,18 @@ public final class ClassDeterministic {
     /** Create a new MethodComparator. */
     public MethodComparator() {}
 
+    @SuppressWarnings("allcheckers:purity.not.deterministic.call") // deterministic up to equals
     @Override
+    @Pure
     public int compare(Method m1, Method m2) {
       int result;
       result = m1.getName().compareTo(m2.getName());
       if (result != 0) {
         return result;
       }
+      @SuppressWarnings("allcheckers:purity.call") // pure up to equality
       Class<?>[] ptypes1 = m1.getParameterTypes();
+      @SuppressWarnings("allcheckers:purity.call") // pure up to equality
       Class<?>[] ptypes2 = m2.getParameterTypes();
       result = ptypes1.length - ptypes2.length;
       if (result != 0) {
@@ -261,7 +270,7 @@ public final class ClassDeterministic {
    * Compares Constructor objects by signature: compares name, number of parameters, and parameter
    * type names.
    */
-  static ConstructorComparator constructorComparator = new ConstructorComparator();
+  private static ConstructorComparator constructorComparator = new ConstructorComparator();
 
   /**
    * Compares Constructor objects by signature: compares name, number of parameters, and parameter
@@ -272,13 +281,17 @@ public final class ClassDeterministic {
     /** Create a new ConstructorComparator. */
     public ConstructorComparator() {}
 
+    @SuppressWarnings("allcheckers:purity.not.deterministic.call") // deterministic up to equals
     @Override
+    @Pure
     public int compare(Constructor<?> c1, Constructor<?> c2) {
       int result = classComparator.compare(c1.getDeclaringClass(), c2.getDeclaringClass());
       if (result != 0) {
         return result;
       }
+      @SuppressWarnings("allcheckers:purity.call") // deterministic up to equality
       Class<?>[] ptypes1 = c1.getParameterTypes();
+      @SuppressWarnings("allcheckers:purity.call") // deterministic up to equality
       Class<?>[] ptypes2 = c2.getParameterTypes();
       result = ptypes1.length - ptypes2.length;
       if (result != 0) {
@@ -298,7 +311,7 @@ public final class ClassDeterministic {
   }
 
   /** Compares Field objects by name. */
-  static FieldComparator fieldComparator = new FieldComparator();
+  private static FieldComparator fieldComparator = new FieldComparator();
 
   /** Compares Field objects by name. */
   private static class FieldComparator implements Comparator<Field> {
@@ -307,6 +320,8 @@ public final class ClassDeterministic {
     public FieldComparator() {}
 
     @Override
+    @Pure
+    @SuppressWarnings("allcheckers:purity.call") // deterministic up to equality
     public int compare(Field f1, Field f2) {
       int result = classComparator.compare(f1.getDeclaringClass(), f2.getDeclaringClass());
       if (result != 0) {
@@ -317,7 +332,7 @@ public final class ClassDeterministic {
   }
 
   /** Compares objects by the result of toString(). */
-  static ToStringComparator toStringComparator = new ToStringComparator();
+  private static ToStringComparator toStringComparator = new ToStringComparator();
 
   /** Compares objects by the result of toString(). */
   private static class ToStringComparator implements Comparator<Object> {
@@ -325,7 +340,9 @@ public final class ClassDeterministic {
     /** Create a new ToStringComparator. */
     public ToStringComparator() {}
 
+    @SuppressWarnings("allcheckers:purity.call") // deterministic up to equals
     @Override
+    @Pure
     public int compare(Object o1, Object o2) {
       return o1.toString().compareTo(o2.toString());
     }

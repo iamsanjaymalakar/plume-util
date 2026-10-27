@@ -8,6 +8,10 @@ import java.util.Set;
 import org.checkerframework.checker.collectionownership.qual.PolyOwningCollection;
 import org.checkerframework.checker.index.qual.NonNegative;
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
+import org.checkerframework.checker.modifiability.qual.Growable;
+import org.checkerframework.checker.modifiability.qual.Modifiable;
+import org.checkerframework.checker.modifiability.qual.Shrinkable;
+import org.checkerframework.checker.modifiability.qual.Unshrinkable;
 import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -20,6 +24,8 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
 /**
  * Base class for arbitrary-size sets that is very efficient (more efficient than HashSet) for 0 and
  * 1 elements.
+ *
+ * <p>This class does not support {@code remove()}, but subclasses may.
  *
  * <p>Does not support storing {@code null}.
  *
@@ -47,30 +53,30 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
   protected @Nullable T value;
 
   /** The wrapped set, non-null when the state is ANY. */
-  protected @Nullable Set<T> set;
+  protected @Modifiable @Nullable Set<T> set;
 
   /**
-   * Create an AbstractMostlySingletonSet.
+   * Creates an AbstractMostlySingletonSet.
    *
    * @param s the state
    */
-  protected AbstractMostlySingletonSet(State s) {
+  protected @Unshrinkable AbstractMostlySingletonSet(State s) {
     this.state = s;
     this.value = null;
   }
 
   /**
-   * Create an AbstractMostlySingletonSet.
+   * Creates an AbstractMostlySingletonSet.
    *
    * @param s the state
    * @param v the value
    */
-  protected AbstractMostlySingletonSet(State s, T v) {
+  protected @Unshrinkable AbstractMostlySingletonSet(State s, T v) {
     this.state = s;
     this.value = v;
   }
 
-  /** Throw an exception if the internal representation is corrupted. */
+  /** Throws an exception if the internal representation is corrupted. */
   protected void checkRep() {
     if ((state == State.EMPTY && (value != null || set != null))
         || (state == State.SINGLETON && (value == null || set != null))
@@ -101,42 +107,13 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
   }
 
   @Override
-  @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree",
-    "lock:override.receiver", // cannot specify the anonymous receiver type
-    "NotJavadoc" // Error prone forbids Javadoc comments on anonymous classes.
-  })
+  @SuppressWarnings("allcheckers:purity.call")
   @SideEffectFree
   public @PolyOwningCollection Iterator<T> iterator(
       @PolyOwningCollection AbstractMostlySingletonSet<T> this) {
     return switch (state) {
       case EMPTY -> Collections.emptyIterator();
-      case SINGLETON ->
-          new Iterator<T>() { // NOPMD: remove when upgrading to Java 9
-            /** True if the iterator has a next element. */
-            private boolean hasNext = true;
-
-            @Override
-            public boolean hasNext(/*@GuardedBy Iterator<T> this*/ ) {
-              return hasNext;
-            }
-
-            @Override
-            public @NotOwning T next(/*@GuardedBy Iterator<T> this*/ ) {
-              if (hasNext) {
-                hasNext = false;
-                assert value != null : "@AssumeAssertion(nullness): previous add is non-null";
-                return value;
-              }
-              throw new NoSuchElementException();
-            }
-
-            @Override
-            public void remove(/*@GuardedBy Iterator<T> this*/ ) {
-              state = State.EMPTY;
-              value = null;
-            }
-          };
+      case SINGLETON -> new SingletonIterator();
       case ANY -> {
         assert set != null : "@AssumeAssertion(nullness): set initialized before";
         yield set.iterator();
@@ -145,6 +122,37 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
         throw new IllegalStateException("Unhandled state " + state);
       }
     };
+  }
+
+  /** An iterator over a set that is in the {@link State#SINGLETON} state. */
+  @SuppressWarnings("lock:override.receiver") // cannot specify the receiver type
+  private final class SingletonIterator implements Iterator<T> {
+    /** True if the iterator has a next element. */
+    private boolean hasNext = true;
+
+    /** Creates a SingletonIterator. */
+    private SingletonIterator() {}
+
+    @Override
+    public boolean hasNext() {
+      return hasNext;
+    }
+
+    @Override
+    public @NotOwning T next() {
+      if (hasNext) {
+        hasNext = false;
+        assert value != null : "@AssumeAssertion(nullness): previous add is non-null";
+        return value;
+      }
+      throw new NoSuchElementException();
+    }
+
+    @Override
+    public void remove(@Shrinkable SingletonIterator this) {
+      state = State.EMPTY;
+      value = null;
+    }
   }
 
   @Override
@@ -164,7 +172,7 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
 
   @Override
   public boolean addAll(
-      @GuardSatisfied AbstractMostlySingletonSet<T> this, Collection<? extends T> c) {
+      @Growable @GuardSatisfied AbstractMostlySingletonSet<T> this, Collection<? extends T> c) {
     boolean res = false;
     for (T elem : c) {
       res |= add(elem);
@@ -184,7 +192,8 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
 
   @Override
   public boolean remove(
-      @GuardSatisfied AbstractMostlySingletonSet<T> this, @Nullable @UnknownSignedness Object o) {
+      @Shrinkable @GuardSatisfied AbstractMostlySingletonSet<T> this,
+      @Nullable @UnknownSignedness Object o) {
     throw new UnsupportedOperationException();
   }
 
@@ -195,17 +204,19 @@ public abstract class AbstractMostlySingletonSet<T extends @Signed Object> imple
   }
 
   @Override
-  public boolean retainAll(@GuardSatisfied AbstractMostlySingletonSet<T> this, Collection<?> c) {
+  public boolean retainAll(
+      @Shrinkable @GuardSatisfied AbstractMostlySingletonSet<T> this, Collection<?> c) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public boolean removeAll(@GuardSatisfied AbstractMostlySingletonSet<T> this, Collection<?> c) {
+  public boolean removeAll(
+      @Shrinkable @GuardSatisfied AbstractMostlySingletonSet<T> this, Collection<?> c) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public void clear(@GuardSatisfied AbstractMostlySingletonSet<T> this) {
+  public void clear(@Shrinkable @GuardSatisfied AbstractMostlySingletonSet<T> this) {
     throw new UnsupportedOperationException();
   }
 }

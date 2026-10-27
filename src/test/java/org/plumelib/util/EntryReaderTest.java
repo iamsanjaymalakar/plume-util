@@ -26,8 +26,7 @@ import org.plumelib.util.EntryReader.EntryFormat;
 /** Test the EntryReader class. */
 @SuppressWarnings({
   "nullness", // run-time errors are acceptable
-  "initializedfields:contracts.postcondition", // @TempDir causes injection
-  "PMD.TooManyStaticImports"
+  "initializedfields:contracts.postcondition" // @TempDir causes injection
 })
 final class EntryReaderTest {
 
@@ -157,6 +156,7 @@ final class EntryReaderTest {
   }
 
   /** Test remove() is not supported. */
+  @SuppressWarnings("modifiability:methodref.receiver.bound") // testing that remove() throws
   @Test
   void testRemoveNotSupported() throws IOException {
     String content = "line1\n";

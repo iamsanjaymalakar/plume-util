@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.checkerframework.checker.modifiability.qual.IteratorPolyMod;
+import org.checkerframework.checker.modifiability.qual.Modifiable;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.junit.jupiter.api.Test;
@@ -14,16 +16,20 @@ import org.junit.jupiter.api.Test;
   "keyfor", // https://github.com/typetools/checker-framework/issues/2358 and maybe other issues
   "nullness"
 })
-final class GraphPlumeTest {
+final class GraphPTest {
 
-  GraphPlumeTest() {}
+  GraphPTest() {}
 
   // ///////////////////////////////////////////////////////////////////////////
 
   // Figure 1 from
   // http://www.boost.org/libs/graph/doc/lengauer_tarjan_dominator.htm#fig:dominator-tree-example
-  private static Map<Integer, List<@KeyFor("preds1") Integer>> preds1 = new LinkedHashMap<>();
-  private static Map<Integer, List<@KeyFor("succs1") Integer>> succs1 = new LinkedHashMap<>();
+  private static @Modifiable Map<
+          Integer, @Modifiable @IteratorPolyMod List<@KeyFor("preds1") Integer>>
+      preds1 = new LinkedHashMap<>();
+  private static @Modifiable Map<
+          Integer, @Modifiable @IteratorPolyMod List<@KeyFor("succs1") Integer>>
+      succs1 = new LinkedHashMap<>();
 
   @EnsuresNonNull({"preds1", "succs1"})
   private static void initializePreds1AndSucc1() {
@@ -54,11 +60,11 @@ final class GraphPlumeTest {
   }
 
   @Test
-  void testGraphPlume() {
+  void testGraphP() {
 
     initializePreds1AndSucc1();
 
-    Map<Integer, List<Integer>> dom1post = GraphPlume.dominators(succs1);
+    Map<Integer, List<Integer>> dom1post = GraphP.dominators(succs1);
     assertEquals("[7, 1, 0]", dom1post.get(0).toString());
     assertEquals("[7, 1]", dom1post.get(1).toString());
     assertEquals("[7, 2]", dom1post.get(2).toString());
@@ -68,7 +74,7 @@ final class GraphPlumeTest {
     assertEquals("[7, 5, 4, 6]", dom1post.get(6).toString());
     assertEquals("[7]", dom1post.get(7).toString());
 
-    Map<Integer, List<Integer>> dom1pre = GraphPlume.dominators(preds1);
+    Map<Integer, List<Integer>> dom1pre = GraphP.dominators(preds1);
     assertEquals("[0]", dom1pre.get(0).toString());
     assertEquals("[0, 1]", dom1pre.get(1).toString());
     assertEquals("[0, 1, 2]", dom1pre.get(2).toString());

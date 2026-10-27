@@ -19,10 +19,12 @@ import org.checkerframework.checker.mustcall.qual.NotOwning;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.qual.ArrayLen;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 // Implementation note:
 // Randoop's main generator ({@link randoop.generation.ForwardGenerator ForwardGenerator})
-// creates new sequences by concatenating existing sequences, thenappending a statement at the end.
+// creates new sequences by concatenating existing sequences, then appending a statement at the end.
 // When profiling Randoop, we observed that naive concatenation took up a large portion of the
 // tool's running time, and the component set (i.e. the set of stored sequences used to create more
 // sequences) quickly exhausted the memory available.
@@ -40,32 +42,12 @@ import org.checkerframework.common.value.qual.ArrayLen;
 public abstract class SIList<E> implements Iterable<E>, Serializable {
 
   /** Serial version UID. */
-  static final long serialVersionUID = 20250617;
+  private static final long serialVersionUID = 20250617;
 
   // **************** producers ****************
 
   /** Creates a SIList. */
   private SIList() {}
-
-  /**
-   * Create a SIList from a JDK Collection.
-   *
-   * @param <E2> the type of list elements
-   * @param list the elements of the new list
-   * @return the new list
-   * @deprecated use {@link #from(Collection)}
-   */
-  @Deprecated(since = "2025-08-30")
-  public static <E2> SIList<E2> fromList(Collection<E2> list) {
-    int size = list.size();
-    if (size == 0) {
-      return empty();
-    } else if (size == 1) {
-      return singleton(list.iterator().next());
-    } else {
-      return new SimpleArrayList<>(list);
-    }
-  }
 
   /**
    * Create a SIList from a JDK Collection.
@@ -228,6 +210,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
    *
    * @return the number of elements in this list
    */
+  @Pure
   public abstract @LengthOf("this") int size();
 
   /**
@@ -243,6 +226,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
    * @param index a position in the list
    * @return the element at the index
    */
+  @SideEffectFree
   public abstract E get(@IndexFor("this") int index);
 
   /**
@@ -252,6 +236,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
    * @param fromIndex low endpoint (inclusive) of the subList
    * @param toIndex high endpoint (exclusive) of the subList
    * @return a view of part of this list
+   * @throws IllegalArgumentException if the range is not valid for this list
    */
   public SIList<E> subList(@IndexFor("this") int fromIndex, @IndexOrHigh("this") int toIndex) {
     checkRange(fromIndex, toIndex);
@@ -277,7 +262,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
 
   @Override
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call",
+    "allcheckers:purity.call",
     "lock:method.guarantee.violated"
   }) // side effect to local state
   public String toString(@GuardSatisfied SIList<E> this) {
@@ -294,10 +279,12 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
    * Throws an exception if the index is not valid for this.
    *
    * @param index an index into this
+   * @throws IllegalArgumentException if the index is not valid for this
    */
   // Can't write this @EnsuresQualifier because the @IndexFor needs an argument of "this".
   // @EnsuresQualifier(expression="#1", qualifier=IndexFor.class)
-  /*package-private*/ final void checkIndex(int index) {
+  @SideEffectFree
+  /*package*/ final void checkIndex(int index) {
     if (index < 0 || index >= size()) {
       throw new IllegalArgumentException(
           String.format("Bad index %d for list of length %d: %s", index, size(), this));
@@ -309,8 +296,9 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
    *
    * @param fromIndex low endpoint (inclusive) of the range
    * @param toIndex high endpoint (exclusive) of the range
+   * @throws IllegalArgumentException if the range is not valid for this
    */
-  /*package-private*/ final void checkRange(int fromIndex, int toIndex) {
+  /*package*/ final void checkRange(int fromIndex, int toIndex) {
     if (fromIndex < 0 || fromIndex > toIndex || toIndex > size()) {
       throw new IllegalArgumentException(
           String.format(
@@ -330,11 +318,13 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
 
     /** The unique empty list. */
     @SuppressWarnings("rawtypes")
-    public static SIList it = new SimpleEmptyList<>();
+    public static final SIList it = new SimpleEmptyList<>();
 
     /** Creates a new empty list. */
     @SuppressWarnings("value") // class annotation cannot be verified in constructor
-    private SimpleEmptyList() {}
+    private SimpleEmptyList() {
+      super();
+    }
 
     @Override
     public @LengthOf("this") int size() {
@@ -360,7 +350,10 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
 
     @Override
     public SIList<E> getSublistContaining(int index) {
-      throw new IndexOutOfBoundsException("index " + index + " for empty list");
+      // No index is valid for an empty list, so this always throws IllegalArgumentException, as do
+      // the other index-checking methods of SIList.
+      checkIndex(index);
+      throw new Error("This can't happen.");
     }
 
     @Override
@@ -382,7 +375,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
 
     /** The element of the list. */
     @SuppressWarnings("serial")
-    private E element;
+    private final E element;
 
     /**
      * Creates a singleton list.
@@ -390,7 +383,8 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
      * @param element the list's element
      */
     @SuppressWarnings("value") // class annotation cannot be verified in constructor
-    SingletonList(E element) {
+    private SingletonList(E element) {
+      super();
       this.element = element;
     }
 
@@ -453,6 +447,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
      */
     @SuppressWarnings("index") // constructor creates object of size @SameLen(this) by definition
     public OneMoreElementList(SIList<E> list, E extraElement) {
+      super();
       this.list = list;
       this.lastElement = extraElement;
       this.size = list.size() + 1;
@@ -483,7 +478,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
     @Override
     public @PolyOwningCollection Iterator<E> iterator(
         @PolyOwningCollection OneMoreElementList<E> this) {
-      return CollectionsPlume.iteratorPlusOne(list.iterator(), lastElement);
+      return CollectionsP.iteratorPlusOne(list.iterator(), lastElement);
     }
 
     @Override
@@ -520,6 +515,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
      */
     @SuppressWarnings("index") // constructor creates object of size @SameLen(this) by definition
     public SimpleArrayList(Collection<? extends E> c) {
+      super();
       delegate = new ArrayList<>(c);
     }
 
@@ -542,7 +538,8 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
     @Override
     public @PolyOwningCollection Iterator<E> iterator(
         @PolyOwningCollection SimpleArrayList<E> this) {
-      return delegate.iterator();
+      // Use an unmodifiable view so that the client cannot call Iterator.remove().
+      return Collections.unmodifiableList(delegate).iterator();
     }
 
     @Override
@@ -567,7 +564,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
     private final SIList<E> @SameLen("cumulativeSize") [] lists;
 
     /** The i-th value is the number of elements in the sublists up to the i-th one, inclusive. */
-    private int @SameLen("lists") [] cumulativeSize;
+    private final int @SameLen("lists") [] cumulativeSize;
 
     /** The size of this collection. */
     private @LengthOf("this") int size;
@@ -578,7 +575,8 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
      * @param lists the lists that will compose the newly-created ListOfLists
      */
     @SuppressWarnings("index") // constructor creates object of size @SameLen(this) by definition
-    ListOfLists(List<SIList<E>> lists) {
+    private ListOfLists(List<SIList<E>> lists) {
+      super();
       // TODO: have a variant that doesn't make a copy?
       @LengthOf({"lists", "this.lists"}) int numLists = lists.size();
       @SuppressWarnings({
@@ -642,8 +640,8 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
 
     @Override
     public @PolyOwningCollection Iterator<E> iterator(@PolyOwningCollection ListOfLists<E> this) {
-      List<Iterator<E>> itors = CollectionsPlume.mapList(SIList::iterator, lists);
-      return CollectionsPlume.mergedIterator(itors.iterator());
+      List<Iterator<E>> itors = CollectionsP.mapList(SIList::iterator, lists);
+      return CollectionsP.mergedIterator(itors.iterator());
     }
   }
 
@@ -675,12 +673,14 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
      * @param fromIndex the index in `delegate` of the first element in this list
      * @param toIndex the index in `delegate` of one past the last element in this list
      */
-    SimpleSubList(
+    private SimpleSubList(
         SIList<E> delegate, @IndexFor("#1") int fromIndex, @IndexOrHigh("#1") int toIndex) {
+      super();
+      // Validate against the delegate's size, not this sublist's own (smaller) size.
+      delegate.checkRange(fromIndex, toIndex);
       this.delegate = delegate;
       this.fromIndex = fromIndex;
       this.toIndex = toIndex;
-      checkRange(fromIndex, toIndex);
     }
 
     @Override
@@ -717,7 +717,7 @@ public abstract class SIList<E> implements Iterable<E>, Serializable {
     private class SimpleSubListIterator implements Iterator<E> {
 
       /** The index of the next element to return. */
-      int index = fromIndex;
+      private int index = fromIndex;
 
       /** Creates a new SimpleSubListIterator. */
       public SimpleSubListIterator() {}

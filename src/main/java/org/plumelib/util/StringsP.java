@@ -8,7 +8,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +18,7 @@ import java.util.regex.Pattern;
 import org.checkerframework.checker.index.qual.IndexOrHigh;
 import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.NonNegative;
+import org.checkerframework.checker.modifiability.qual.Modifiable;
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
@@ -34,15 +34,15 @@ import org.checkerframework.dataflow.qual.SideEffectFree;
  * joining; quoting and escaping; whitespace; comparisons; StringTokenizer; debugging variants of
  * toString; diagnostic output; miscellaneous.
  */
-public final class StringsPlume {
+public final class StringsP {
 
   /** This class is a collection of methods; it does not represent anything. */
-  private StringsPlume() {
-    throw new Error("do not instantiate");
+  private StringsP() {
+    throw new UnsupportedOperationException("do not instantiate");
   }
 
   /** The system-specific line separator string. */
-  private static final String lineSep = System.lineSeparator();
+  private static final String LINE_SEP = System.lineSeparator();
 
   // //////////////////////////////////////////////////////////////////////
   // Replacement
@@ -50,10 +50,12 @@ public final class StringsPlume {
 
   /**
    * Returns the target with an occurrence of oldStr at the start replaced by newStr. Returns the
-   * target if it does not strt with oldStr.
+   * target if it does not start with oldStr.
    *
    * <p>An alternative to this is to use regular expressions: {@code target.replaceFirst("^" +
-   * Pattern.quote(oldStr), newStr)}
+   * Pattern.quote(oldStr), Matcher.quoteReplacement(newStr))}. The call to {@code
+   * Matcher.quoteReplacement} is necessary because {@code replaceFirst} treats {@code $} and {@code
+   * \} in its second argument specially.
    *
    * @param target the string to do replacement in
    * @param oldStr the prefix to replace
@@ -79,13 +81,16 @@ public final class StringsPlume {
    * target if it does not end with oldStr.
    *
    * <p>An alternative to this is to use regular expressions: {@code
-   * target.replaceLast(Pattern.quote(oldStr) + "$", newStr)}
+   * target.replaceAll(Pattern.quote(oldStr) + "\\z", Matcher.quoteReplacement(newStr))}. The anchor
+   * is {@code \z} rather than {@code $} because {@code $} also matches before a line terminator at
+   * the end of the target. The call to {@code Matcher.quoteReplacement} is necessary because {@code
+   * replaceAll} treats {@code $} and {@code \} in its second argument specially.
    *
    * @param target the string to do replacement in
-   * @param oldStr the substring to replace
+   * @param oldStr the suffix to replace
    * @param newStr the replacement
-   * @return the target with an occurrence of oldStr at the start replaced by newStr; returns the
-   *     target if it does not start with oldStr
+   * @return the target with an occurrence of oldStr at the end replaced by newStr; returns the
+   *     target if it does not end with oldStr
    */
   @SuppressWarnings("lowerbound:argument") // endsWith implies indexes fit
   @SideEffectFree
@@ -146,7 +151,7 @@ public final class StringsPlume {
     if (o == null) {
       return "null";
     }
-    return o.toString().replace(lineSep, lineSep + prefix);
+    return o.toString().replace(LINE_SEP, LINE_SEP + prefix);
   }
 
   /**
@@ -220,7 +225,7 @@ public final class StringsPlume {
    */
   @SuppressWarnings({
     "regex:return", // all matches of allLineSeparators are regexes
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
@@ -240,7 +245,7 @@ public final class StringsPlume {
    * @return the split string
    */
   @SideEffectFree
-  public static List<String> splitLinesRetainSeparators(String input) {
+  public static @Modifiable List<String> splitLinesRetainSeparators(String input) {
     return splitRetainSeparators(input, allLineSeparators);
   }
 
@@ -252,7 +257,7 @@ public final class StringsPlume {
    * @return the split string
    */
   @SideEffectFree
-  public static List<String> splitRetainSeparators(String input, @Regex String regex) {
+  public static @Modifiable List<String> splitRetainSeparators(String input, @Regex String regex) {
     return splitRetainSeparators(input, Pattern.compile(regex));
   }
 
@@ -265,11 +270,11 @@ public final class StringsPlume {
    */
   @SuppressWarnings({
     "index:argument", // m.end is @LTLengthOf("index")
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // needs JDK annotations
   })
   @SideEffectFree
-  public static List<String> splitRetainSeparators(String input, Pattern p) {
+  public static @Modifiable List<String> splitRetainSeparators(String input, Pattern p) {
     List<String> result = new ArrayList<>();
     Matcher m = p.matcher(input);
     int pos = 0;
@@ -299,23 +304,17 @@ public final class StringsPlume {
    */
   @SuppressWarnings({
     "lock:method.guarantee.violated", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call" // side effect to local state
+    "allcheckers:purity.call" // side effect to local state
   })
   @SafeVarargs
   @SideEffectFree
   public static <T extends @MustCallUnknown Object> String join(
       CharSequence delim, @Signed T... a) {
-    if (a.length == 0) {
-      return "";
+    StringJoiner sj = new StringJoiner(delim);
+    for (T elt : a) {
+      sj.add(String.valueOf(elt));
     }
-    if (a.length == 1) {
-      return String.valueOf(a[0]);
-    }
-    StringBuilder sb = new StringBuilder(String.valueOf(a[0]));
-    for (int i = 1; i < a.length; i++) {
-      sb.append(delim).append(a[i]);
-    }
-    return sb.toString();
+    return sj.toString();
   }
 
   /**
@@ -323,14 +322,14 @@ public final class StringsPlume {
    * separator between them.
    *
    * @param <T> the type of array elements
-   * @param a array of values to whose string representation to concatenate
+   * @param a array of values whose string representation to concatenate
    * @return the concatenation of the string representations of the values, each on its own line
    */
   @SafeVarargs
   @SuppressWarnings("varargs")
   @SideEffectFree
   public static <T extends @MustCallUnknown Object> String joinLines(@Signed T... a) {
-    return join(lineSep, a);
+    return join(LINE_SEP, a);
   }
 
   /**
@@ -347,24 +346,17 @@ public final class StringsPlume {
    */
   @SuppressWarnings({
     "lock:method.guarantee.violated", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
   })
   @SideEffectFree
   public static String join(
       CharSequence delim,
       @MustCallUnknown Iterable<? extends @Signed @PolyNull @MustCallUnknown Object> v) {
-    StringBuilder sb = new StringBuilder();
-    boolean first = true;
-    Iterator<? extends @Signed @PolyNull @MustCallUnknown Object> itor = v.iterator();
-    while (itor.hasNext()) {
-      if (first) {
-        first = false;
-      } else {
-        sb.append(delim);
-      }
-      sb.append(itor.next());
+    StringJoiner sj = new StringJoiner(delim);
+    for (@Signed @PolyNull Object elt : v) {
+      sj.add(String.valueOf(elt));
     }
-    return sb.toString();
+    return sj.toString();
   }
 
   /**
@@ -378,7 +370,7 @@ public final class StringsPlume {
   @SideEffectFree
   public static String joinLines(
       @MustCallUnknown Iterable<? extends @Signed @PolyNull @MustCallUnknown Object> v) {
-    return join(lineSep, v);
+    return join(LINE_SEP, v);
   }
 
   // //////////////////////////////////////////////////////////////////////
@@ -400,7 +392,7 @@ public final class StringsPlume {
    */
   @SuppressWarnings({
     "lock:method.guarantee.violated", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call" // side effect to local state
+    "allcheckers:purity.call" // side effect to local state
   })
   @SideEffectFree
   public static String escapeJava(String orig) {
@@ -439,11 +431,11 @@ public final class StringsPlume {
           sb.append("\\f");
           postEsc = i + 1;
         }
-        case '\n' -> { // '\n', not lineSep
+        case '\n' -> { // '\n', not LINE_SEP
           if (postEsc < i) {
             sb.append(orig.substring(postEsc, i));
           }
-          sb.append("\\n"); // not lineSep
+          sb.append("\\n"); // not LINE_SEP
           postEsc = i + 1;
         }
         case '\r' -> {
@@ -491,43 +483,6 @@ public final class StringsPlume {
   }
 
   /**
-   * Like {@link #escapeJava(String)}, but for a single character. Note that this quotes its
-   * argument for inclusion in a string literal, not in a character literal.
-   *
-   * @param ch character to quote
-   * @return quoted version of ch
-   * @deprecated use {@link #escapeJava(String)} or {@link #charLiteral(Character)}
-   */
-  @Deprecated(since = "2021-03-14")
-  @SideEffectFree
-  public static String escapeJava(Character ch) {
-    return escapeJava(ch.charValue());
-  }
-
-  /**
-   * Like {@link #escapeJava(String)}, but for a single character. Note that this quotes its
-   * argument for inclusion in a string literal, not in a character literal.
-   *
-   * @param c character to quote
-   * @return quoted version of ch
-   * @deprecated use {@link #escapeJava(String)} or {@link #charLiteral(char)}
-   */
-  @Deprecated(since = "2021-03-14")
-  @SideEffectFree
-  public static String escapeJava(char c) {
-    return switch (c) {
-      case '\"' -> "\\\"";
-      case '\\' -> "\\\\";
-      case '\b' -> "\\b";
-      case '\f' -> "\\f";
-      case '\n' -> "\\n"; // '\n', not lineSep
-      case '\r' -> "\\r";
-      case '\t' -> "\\t";
-      default -> new String(new char[] {c});
-    };
-  }
-
-  /**
    * Given a character, returns a Java character literal denoting the character. The return value
    * begins and ends with a single quote mark.
    *
@@ -543,7 +498,7 @@ public final class StringsPlume {
    * Given a character, returns a Java character literal denoting the character.
    *
    * @param c character to quote
-   * @return quoted version of ch
+   * @return quoted version of c
    */
   @SideEffectFree
   public static String charLiteral(char c) {
@@ -552,7 +507,7 @@ public final class StringsPlume {
       case '\\' -> "'\\\\'";
       case '\b' -> "'\\b'";
       case '\f' -> "'\\f'";
-      case '\n' -> "'\\n'"; // '\n', not lineSep
+      case '\n' -> "'\\n'"; // '\n', not LINE_SEP
       case '\r' -> "'\\r'";
       case '\t' -> "'\\t'";
       default -> "'" + c + "'";
@@ -563,12 +518,15 @@ public final class StringsPlume {
    * Escape unprintable characters in the target, following the usual Java backslash conventions, so
    * that the result is sure to be printable ASCII. Returns a new string.
    *
+   * <p>This implementation is not particularly optimized: unlike {@link #escapeJava(String)}, it
+   * allocates a string per character rather than copying unescaped runs in bulk.
+   *
    * @param orig string to quote
    * @return quoted version of orig
    */
   @SuppressWarnings({
     "lock:method.guarantee.violated", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call" // side effect to local state
+    "allcheckers:purity.call" // side effect to local state
   })
   @SideEffectFree
   public static String escapeNonASCII(String orig) {
@@ -584,8 +542,6 @@ public final class StringsPlume {
   /**
    * Like escapeJava(), but quote more characters so that the result is sure to be printable ASCII.
    *
-   * <p>This implementation is not particularly optimized.
-   *
    * @param c character to quote
    * @return quoted version of c
    */
@@ -595,8 +551,8 @@ public final class StringsPlume {
       return "\\\"";
     } else if (c == '\\') {
       return "\\\\";
-    } else if (c == '\n') { // not lineSep
-      return "\\n"; // not lineSep
+    } else if (c == '\n') { // not LINE_SEP
+      return "\\n"; // not LINE_SEP
     } else if (c == '\r') {
       return "\\r";
     } else if (c == '\t') {
@@ -604,17 +560,20 @@ public final class StringsPlume {
     } else if (c >= ' ' && c <= '~') {
       return new String(new char[] {c});
     } else if (c < 256) {
-      String octal = Integer.toOctalString(c);
-      while (octal.length() < 3) {
-        octal = '0' + octal;
-      }
-      return "\\" + octal;
+      return new String(
+          new char[] {
+            '\\', (char) ('0' + (c >> 6)), (char) ('0' + ((c >> 3) & 7)), (char) ('0' + (c & 7))
+          });
     } else {
-      String hex = Integer.toHexString(c);
-      while (hex.length() < 4) {
-        hex = "0" + hex;
-      }
-      return "\\u" + hex;
+      return new String(
+          new char[] {
+            '\\',
+            'u',
+            Character.forDigit((c >> 12) & 0xf, 16),
+            Character.forDigit((c >> 8) & 0xf, 16),
+            Character.forDigit((c >> 4) & 0xf, 16),
+            Character.forDigit(c & 0xf, 16)
+          });
     }
   }
 
@@ -626,12 +585,18 @@ public final class StringsPlume {
    * <p>Compared to the `unescapeJava` method in Apache Commons Text StringEscapeUtils, this one
    * correctly handles non-printable ASCII characters.
    *
+   * <p>This method never throws an exception on malformed input. A Unicode escape is more liberal
+   * than the Java specification permits: it accepts fewer than 4 hexadecimal digits, and it yields
+   * the null character if no hexadecimal digit follows. An octal escape ends at the first character
+   * that is not an octal digit, or before the digit that would make the value exceed {@code 0xFF};
+   * this matches the Java specification.
+   *
    * @param orig string to quote
    * @return quoted version of orig
    */
   @SuppressWarnings({
     "lock:method.guarantee.violated", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call" // side effect to local state
+    "allcheckers:purity.call" // side effect to local state
   })
   @SideEffectFree
   public static String unescapeJava(String orig) {
@@ -658,7 +623,7 @@ public final class StringsPlume {
         }
         case 'n' -> {
           sb.append(orig.substring(postEsc, thisEsc));
-          sb.append('\n'); // not lineSep
+          sb.append('\n'); // not LINE_SEP
           postEsc = thisEsc + 2;
         }
         case 'r' -> {
@@ -674,7 +639,7 @@ public final class StringsPlume {
         case '\\' -> {
           // This is not in the default case because the search would find
           // the quoted backslash.  Here we include the first backslash in
-          // the output, but not the first.
+          // the output, but not the second.
           sb.append(orig.substring(postEsc, thisEsc + 1));
           postEsc = thisEsc + 2;
         }
@@ -693,10 +658,11 @@ public final class StringsPlume {
           int limit = Math.min(ii + 4, orig.length());
           while (ii < limit) {
             int thisDigit = Character.digit(orig.charAt(ii), 16);
-            if (thisDigit != -1) {
-              unicodeChar = (char) ((unicodeChar * 16) + thisDigit);
-              ii++;
+            if (thisDigit == -1) {
+              break;
             }
+            unicodeChar = (char) ((unicodeChar * 16) + thisDigit);
+            ii++;
           }
           sb.append(unicodeChar);
           postEsc = ii;
@@ -709,13 +675,15 @@ public final class StringsPlume {
           int iii = thisEsc + 1;
           while (iii < Math.min(thisEsc + 4, orig.length())) {
             int thisDigit = Character.digit(orig.charAt(iii), 8);
-            if (thisDigit != -1) {
-              int newValue = (octalChar * 8) + thisDigit;
-              if (newValue <= 0xFF) {
-                octalChar = (char) newValue;
-                iii++;
-              }
+            if (thisDigit == -1) {
+              break;
             }
+            int newValue = (octalChar * 8) + thisDigit;
+            if (newValue > 0xFF) {
+              break;
+            }
+            octalChar = (char) newValue;
+            iii++;
           }
           sb.append(octalChar);
           postEsc = iii;
@@ -742,27 +710,6 @@ public final class StringsPlume {
   //
 
   /**
-   * Returns true if the string contains only white space codepoints, otherwise false.
-   *
-   * <p>In Java 11+, use {@code String.isBlank()} instead.
-   *
-   * @param s a string
-   * @return true if the string contains only white space codepoints, otherwise false
-   * @deprecated use {@code String.isBlank()}
-   */
-  @SuppressWarnings({
-    "allcheckers:purity.not.deterministic.call", // used for lookup, so order does not matter
-    "allcheckers:purity.not.deterministic.not.sideeffectfree.call", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
-    "lock:method.guarantee.violated" // side effect to local state
-  })
-  @Deprecated(since = "2026-03-05")
-  @Pure
-  public static boolean isBlank(String s) {
-    return s.chars().allMatch(Character::isWhitespace);
-  }
-
-  /**
    * Remove all whitespace before or after instances of delimiter.
    *
    * @param arg string to remove whitespace in
@@ -771,9 +718,9 @@ public final class StringsPlume {
    */
   @SideEffectFree
   public static String removeWhitespaceAround(String arg, String delimiter) {
-    arg = removeWhitespaceBefore(arg, delimiter);
-    arg = removeWhitespaceAfter(arg, delimiter);
-    return arg;
+    String result = removeWhitespaceBefore(arg, delimiter);
+    result = removeWhitespaceAfter(result, delimiter);
+    return result;
   }
 
   /**
@@ -856,7 +803,7 @@ public final class StringsPlume {
    * @return {@code s} truncated or padded to {@code length} characters
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
@@ -920,7 +867,7 @@ public final class StringsPlume {
    * @return {@code s} truncated or padded to {@code length} characters
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
@@ -994,7 +941,7 @@ public final class StringsPlume {
    */
   @SuppressWarnings({
     "lock:method.guarantee.violated", // side effect to local state
-    "allcheckers:purity.not.sideeffectfree.call"
+    "allcheckers:purity.call"
   }) // side effect to local state
   @SideEffectFree
   public static String rpad(double num, @NonNegative int length) {
@@ -1027,49 +974,6 @@ public final class StringsPlume {
   //
 
   /**
-   * Same as built-in String comparison, but accept null arguments, and place them at the beginning.
-   *
-   * @deprecated use {@code Comparator.nullsFirst(Comparator.naturalOrder())}
-   */
-  @Deprecated(since = "2021-02-27")
-  public static class NullableStringComparator
-      implements Comparator<@Nullable String>, Serializable {
-    /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20150812L;
-
-    /** Create a new NullableStringComparator. */
-    @SideEffectFree
-    public NullableStringComparator() {}
-
-    /**
-     * Compare two Strings lexicographically. Null is considered less than any non-null String.
-     *
-     * @param s1 first string to compare
-     * @param s2 second string to compare
-     * @return a negative integer, zero, or a positive integer as the first argument is less than,
-     *     equal to, or greater than the second
-     */
-    @SuppressWarnings({
-      "ReferenceEquality",
-      "PMD.UseEqualsToCompareStrings"
-    }) // comparator method uses ==
-    @Pure
-    @Override
-    public int compare(@Nullable String s1, @Nullable String s2) {
-      if (s1 == s2) {
-        return 0;
-      }
-      if (s1 == null) {
-        return -1;
-      }
-      if (s2 == null) {
-        return 1;
-      }
-      return s1.compareTo(s2);
-    }
-  }
-
-  /**
    * Orders Objects according to their {@code toString()} representation. Null is considered less
    * than any non-null Object.
    *
@@ -1080,21 +984,25 @@ public final class StringsPlume {
    * <p>This cannot be replaced by {@code Comparator.nullsFirst(Comparator.naturalOrder())} because
    * {@code Object} is not {@code Comparable}.
    */
-  public static class ObjectComparator implements Comparator<@Nullable Object>, Serializable {
+  public static final class ObjectComparator implements Comparator<@Nullable Object>, Serializable {
 
     /** The canonical ObjectComparator. */
-    public static final ObjectComparator it = new ObjectComparator();
+    public static final ObjectComparator IT = new ObjectComparator();
 
     /**
-     * Create a new ObjectComparator.
+     * The canonical ObjectComparator.
      *
-     * @deprecated use {@link #it}.
+     * @deprecated use {@link #IT}
      */
-    @Deprecated(since = "2022-07-25") // to make private
-    public ObjectComparator() {}
+    @Deprecated(since = "2026-09-15")
+    // @SuppressWarnings("PMD.FieldNamingConventions")
+    public static final ObjectComparator it = IT;
+
+    /** Create a new ObjectComparator. Clients should use {@link #IT}. */
+    private ObjectComparator() {}
 
     /** Unique identifier for serialization. If you add or remove fields, change this number. */
-    static final long serialVersionUID = 20170420L;
+    private static final long serialVersionUID = 20170420L;
 
     /**
      * Compare two Objects based on their string representations. Null is considered less than any
@@ -1107,7 +1015,7 @@ public final class StringsPlume {
      *     {@code toString()} representation
      */
     @SuppressWarnings({
-      "allcheckers:purity.not.deterministic.call",
+      "allcheckers:purity.call",
       "lock"
     }) // toString is being used in a deterministic way
     @Pure
@@ -1138,7 +1046,7 @@ public final class StringsPlume {
   //
 
   /**
-   * Returns a ArrayList of the Strings returned by {@link
+   * Returns an ArrayList of the Strings returned by {@link
    * java.util.StringTokenizer#StringTokenizer(String,String,boolean)} with the given arguments.
    *
    * <p>The static type is {@code ArrayList<Object>} because StringTokenizer extends {@code
@@ -1151,16 +1059,16 @@ public final class StringsPlume {
    * @return vector of strings resulting from tokenization
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
   public static List<Object> tokens(String str, String delim, boolean returnDelims) {
-    return CollectionsPlume.makeArrayList(new StringTokenizer(str, delim, returnDelims));
+    return CollectionsP.makeArrayList(new StringTokenizer(str, delim, returnDelims));
   }
 
   /**
-   * Returns a ArrayList of the Strings returned by {@link
+   * Returns an ArrayList of the Strings returned by {@link
    * java.util.StringTokenizer#StringTokenizer(String,String)} with the given arguments.
    *
    * @param str a string to be parsed
@@ -1168,28 +1076,28 @@ public final class StringsPlume {
    * @return vector of strings resulting from tokenization
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
   public static List<Object> tokens(String str, String delim) {
-    return CollectionsPlume.makeArrayList(new StringTokenizer(str, delim));
+    return CollectionsP.makeArrayList(new StringTokenizer(str, delim));
   }
 
   /**
-   * Returns a ArrayList of the Strings returned by {@link
+   * Returns an ArrayList of the Strings returned by {@link
    * java.util.StringTokenizer#StringTokenizer(String)} with the given arguments.
    *
    * @param str a string to be parsed
    * @return vector of strings resulting from tokenization
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
   public static List<Object> tokens(String str) {
-    return CollectionsPlume.makeArrayList(new StringTokenizer(str));
+    return CollectionsP.makeArrayList(new StringTokenizer(str));
   }
 
   // //////////////////////////////////////////////////////////////////////
@@ -1197,10 +1105,28 @@ public final class StringsPlume {
   //
 
   /** Matches a version number, of the form N.N or N.N.N, etc., where each N consists of digits. */
-  public static final @Regex String versionNumberRegex = "\\d+(\\.\\d+)+";
+  public static final @Regex String VERSION_NUMBER_REGEX = "\\d+(\\.\\d+)+";
+
+  /**
+   * Matches a version number, of the form N.N or N.N.N, etc., where each N consists of digits.
+   *
+   * @deprecated use {@link #VERSION_NUMBER_REGEX}
+   */
+  @Deprecated(since = "2026-09-15")
+  // @SuppressWarnings("PMD.FieldNamingConventions")
+  public static final @Regex String versionNumberRegex = VERSION_NUMBER_REGEX;
 
   /** Matches a version number, of the form N.N or N.N.N, etc., where each N consists of digits. */
-  public static final Pattern versionNumberPattern = Pattern.compile("\\d+(\\.\\d+)+");
+  public static final Pattern VERSION_NUMBER_PATTERN = Pattern.compile("\\d+(\\.\\d+)+");
+
+  /**
+   * Matches a version number, of the form N.N or N.N.N, etc., where each N consists of digits.
+   *
+   * @deprecated use {@link #VERSION_NUMBER_PATTERN}
+   */
+  @Deprecated(since = "2026-09-15")
+  // @SuppressWarnings("PMD.FieldNamingConventions")
+  public static final Pattern versionNumberPattern = VERSION_NUMBER_PATTERN;
 
   /**
    * Returns true if the given text is a version number. It has the form N.N or N.N.N, etc., where
@@ -1211,41 +1137,100 @@ public final class StringsPlume {
    */
   // "protected" to permit tests to access it.
   public static boolean isVersionNumber(String text) {
-    return versionNumberPattern.matcher(text).matches();
+    return VERSION_NUMBER_PATTERN.matcher(text).matches();
   }
 
   /**
    * A comparator that compares version numbers. It must only be invoked on strings that are version
    * numbers.
+   *
+   * <p>This comparator is inconsistent with equals: it compares each component numerically, so it
+   * returns 0 for two unequal strings whose components have leading zeros, such as {@code "1.2"}
+   * and {@code "1.02"}.
+   *
+   * <p>A component may be arbitrarily large; it is not converted to an {@code int}, so a component
+   * larger than {@code Integer.MAX_VALUE} does not cause an exception.
    */
   public static class VersionNumberComparator implements Comparator<String> {
 
     /** Creates a new VersionNumberComparator. */
     public VersionNumberComparator() {}
 
+    @SuppressWarnings({
+      "allcheckers:purity.not.deterministic.call", // deterministic up to equals
+      "allcheckers:purity.not.deterministic.not.sideeffectfree.call", // compareDigitStrings is pure
+      "allcheckers:method.guarantee.violated" // compareDigitStrings is pure
+    })
     @Override
+    @Pure
     public int compare(String s1, String s2) {
       if (s1.equals(s2)) {
         return 0;
       }
+      @SuppressWarnings("allcheckers:purity.call") // deterministic up to equality
       String[] components1 = s1.split("\\.", -1);
+      @SuppressWarnings("allcheckers:purity.call") // deterministic up to equality
       String[] components2 = s2.split("\\.", -1);
       int len = Math.min(components1.length, components2.length);
       for (int i = 0; i < len; i++) {
-        int int1 = Integer.parseInt(components1[i]);
-        int int2 = Integer.parseInt(components2[i]);
-        if (int1 < int2) {
-          return -1;
-        } else if (int1 > int2) {
-          return 1;
+        int comparison = compareDigitStrings(components1[i], components2[i]);
+        if (comparison != 0) {
+          return comparison;
         }
       }
-      if (components1.length < components2.length) {
-        return -1;
-      } else {
-        assert components2.length < components1.length;
-        return 1;
+      return Integer.compare(components1.length, components2.length);
+    }
+
+    /**
+     * Compares two strings of decimal digits numerically. The components of a version number may be
+     * arbitrarily large, so this does not convert them to {@code int} or {@code long}.
+     *
+     * @param s1 a nonempty string of decimal digits
+     * @param s2 a nonempty string of decimal digits
+     * @return a negative integer, zero, or a positive integer as s1 is numerically less than, equal
+     *     to, or greater than s2
+     * @throws NumberFormatException if either argument is not a nonempty string of decimal digits
+     */
+    @Pure
+    private static int compareDigitStrings(String s1, String s2) {
+      int start1 = indexOfFirstSignificantDigit(s1);
+      int start2 = indexOfFirstSignificantDigit(s2);
+      // Ignoring leading zeros, the number with more digits is the larger one.
+      int comparison = Integer.compare(s1.length() - start1, s2.length() - start2);
+      if (comparison != 0) {
+        return comparison;
       }
+      // The two numbers have the same number of significant digits, so comparing them
+      // lexicographically compares them numerically.
+      @SuppressWarnings("allcheckers:purity.call") // deterministic up to equality
+      int result = s1.substring(start1).compareTo(s2.substring(start2));
+      return result;
+    }
+
+    /**
+     * Returns the index in the given string of its first nonzero digit.
+     *
+     * @param s a nonempty string of decimal digits
+     * @return the index of the first nonzero digit in s, or s.length() if every digit of s is zero
+     * @throws NumberFormatException if s is not a nonempty string of decimal digits
+     */
+    @Pure
+    private static @IndexOrHigh("#1") int indexOfFirstSignificantDigit(String s) {
+      if (s.isEmpty()) {
+        throw new NumberFormatException("Not a version number component: \"" + s + "\"");
+      }
+      for (int i = 0; i < s.length(); i++) {
+        char c = s.charAt(i);
+        if (c < '0' || c > '9') {
+          throw new NumberFormatException("Not a version number component: \"" + s + "\"");
+        }
+      }
+      for (int i = 0; i < s.length(); i++) {
+        if (s.charAt(i) != '0') {
+          return i;
+        }
+      }
+      return s.length();
     }
   }
 
@@ -1257,7 +1242,7 @@ public final class StringsPlume {
    *
    * @param v1 a version number
    * @param v2 a version number
-   * @return true if the given text is a version number
+   * @return true if the first version number is less than or equal to the second version number
    */
   // "protected" to permit tests to access it.
   public static boolean isVersionNumberLE(String v1, String v2) {
@@ -1293,26 +1278,30 @@ public final class StringsPlume {
     if (v == null) {
       return "null";
     }
-    if (v.getClass() == Object.class) {
-      return "a value of class " + v.getClass();
+    Class<?> vClass = v.getClass();
+    if (vClass == Object.class) {
+      return "a value of class " + vClass;
     }
     if (!shallow) {
-      if (v.getClass().isArray()) {
+      if (vClass.isArray()) {
         return arrayToStringAndClass(v);
       }
       if (v instanceof List<?> l) {
         return listToStringAndClass((List<? extends @PolyNull @Signed Object>) l);
       }
       if (v instanceof Map<?, ?> m) {
-        return mapToStringAndClass(
-            (Map<? extends @PolyNull @Signed Object, ? extends @PolyNull @Signed Object>) m);
+        @SuppressWarnings("keyfor:type.argument") // TODO
+        String result =
+            MapsP.mapToStringAndClassMultiLine(
+                (Map<? extends @PolyNull @Signed Object, ? extends @PolyNull @Signed Object>) m);
+        return result;
       }
     }
     try {
       String formatted = escapeJava(v.toString());
-      return String.format("%s [%s]", formatted, v.getClass());
+      return String.format("%s [%s]", formatted, vClass);
     } catch (Exception e) {
-      return String.format("exception_when_calling_toString [%s]", v.getClass());
+      return String.format("exception_when_calling_toString [%s]", vClass);
     }
   }
 
@@ -1340,7 +1329,7 @@ public final class StringsPlume {
    * @return a string representation of each element and its class
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // side effect to local state
   })
   @SideEffectFree
@@ -1402,137 +1391,70 @@ public final class StringsPlume {
         "Argument is not an array; its class is " + a.getClass().getName());
   }
 
-  //
-  // Diagnostic output
-  //
-
-  /**
-   * Convert a map to a string, printing the runtime class of keys and values.
-   *
-   * @param m a map
-   * @return a string representation of the map
-   * @deprecated use {@link CollectionsPlume#mapToStringAndClassMultiLine}
-   */
-  @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
-    "lock:method.guarantee.violated" // side effect to local state
-  })
-  @Deprecated(since = "2025-06-21")
-  @SideEffectFree
-  public static String mapToStringAndClass(
-      Map<? extends @Signed @PolyNull Object, ? extends @Signed @PolyNull Object> m) {
-    StringJoiner result = new StringJoiner(System.lineSeparator());
-    for (Map.Entry<? extends @Signed @PolyNull Object, ? extends @Signed @PolyNull Object> e :
-        m.entrySet()) {
-      result.add("  " + toStringAndClass(e.getKey()) + " => " + toStringAndClass(e.getValue()));
-    }
-    return result.toString();
-  }
-
-  /**
-   * Convert a map to a string, printing each key-value pair on its own line, with no indentation.
-   *
-   * @param m a map
-   * @return a string representation of the map
-   * @deprecated use {@link CollectionsPlume#mapToStringAndClassMultiLine}
-   */
-  @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
-    "lock:method.guarantee.violated" // side effect to local state
-  })
-  @Deprecated(since = "2025-06-21")
-  @SideEffectFree
-  public static String mapToStringLinewise(
-      Map<? extends @Signed @PolyNull Object, ? extends @Signed @PolyNull Object> m) {
-    StringJoiner result = new StringJoiner(System.lineSeparator());
-    for (Map.Entry<? extends @Signed @PolyNull Object, ? extends @Signed @PolyNull Object> e :
-        m.entrySet()) {
-      result.add(e.getKey() + " => " + e.getValue());
-    }
-    return result.toString();
-  }
-
   // //////////////////////////////////////////////////////////////////////
   // English text
   //
 
-  /**
-   * Returns either "n <em>noun</em>" or "n <em>noun</em>s" depending on n. Adds "es" to words
-   * ending with "ch", "s", "sh", or "x", adds "ies" to words ending with "y" when the previous
-   * letter is a consonant.
-   *
-   * @param n count of nouns
-   * @param noun word being counted; must not be the empty string
-   * @return {@code noun}, if n==1; otherwise, pluralization of {@code noun}
-   * @throws IllegalArgumentException if the length of {@code noun} is 0
-   * @deprecated use {@link #nPlural(int, String)}
-   */
-  @Deprecated(since = "2025-07-16")
-  @SideEffectFree
-  public static String nplural(int n, String noun) {
-    return nPlural(n, noun);
-  }
-
   /** Exceptions to the usual English noun pluralization rules. */
-  private static final Map<String, String> nPluralExceptions = new HashMap<>();
+  private static final @Modifiable Map<String, String> N_PLURAL_EXCEPTIONS = new HashMap<>();
 
   static {
     // No change
-    nPluralExceptions.put("bison", "bison");
-    nPluralExceptions.put("buffalo", "buffalo");
-    nPluralExceptions.put("carp", "carp");
-    nPluralExceptions.put("chassis", "chassis");
-    nPluralExceptions.put("cod", "cod");
-    nPluralExceptions.put("deer", "deer");
-    nPluralExceptions.put("fish", "fish");
-    nPluralExceptions.put("kakapo", "kakapo");
-    nPluralExceptions.put("neat", "neat");
-    nPluralExceptions.put("pike", "pike");
-    nPluralExceptions.put("salmon", "salmon");
-    nPluralExceptions.put("series", "series");
-    nPluralExceptions.put("sheep", "sheep");
-    nPluralExceptions.put("shrimp", "shrimp");
-    nPluralExceptions.put("species", "species");
-    nPluralExceptions.put("squid", "squid");
-    nPluralExceptions.put("trout", "trout");
+    N_PLURAL_EXCEPTIONS.put("bison", "bison");
+    N_PLURAL_EXCEPTIONS.put("buffalo", "buffalo");
+    N_PLURAL_EXCEPTIONS.put("carp", "carp");
+    N_PLURAL_EXCEPTIONS.put("chassis", "chassis");
+    N_PLURAL_EXCEPTIONS.put("cod", "cod");
+    N_PLURAL_EXCEPTIONS.put("deer", "deer");
+    N_PLURAL_EXCEPTIONS.put("fish", "fish");
+    N_PLURAL_EXCEPTIONS.put("kakapo", "kakapo");
+    N_PLURAL_EXCEPTIONS.put("neat", "neat");
+    N_PLURAL_EXCEPTIONS.put("pike", "pike");
+    N_PLURAL_EXCEPTIONS.put("salmon", "salmon");
+    N_PLURAL_EXCEPTIONS.put("series", "series");
+    N_PLURAL_EXCEPTIONS.put("sheep", "sheep");
+    N_PLURAL_EXCEPTIONS.put("shrimp", "shrimp");
+    N_PLURAL_EXCEPTIONS.put("species", "species");
+    N_PLURAL_EXCEPTIONS.put("squid", "squid");
+    N_PLURAL_EXCEPTIONS.put("trout", "trout");
 
     // Native American tribe names
 
-    nPluralExceptions.put("Cherokee", "Cherokee");
-    nPluralExceptions.put("Cree", "Cree");
-    nPluralExceptions.put("Comanche", "Comanche");
-    nPluralExceptions.put("Delaware", "Delaware");
-    nPluralExceptions.put("Hopi", "Hopi");
-    nPluralExceptions.put("Iroquois", "Iroquois");
-    nPluralExceptions.put("Kiowa", "Kiowa");
-    nPluralExceptions.put("Navajo", "Navajo");
-    nPluralExceptions.put("Ojibwa", "Ojibwa");
-    nPluralExceptions.put("Sioux", "Sioux");
-    nPluralExceptions.put("Zuni", "Zuni");
+    N_PLURAL_EXCEPTIONS.put("Cherokee", "Cherokee");
+    N_PLURAL_EXCEPTIONS.put("Cree", "Cree");
+    N_PLURAL_EXCEPTIONS.put("Comanche", "Comanche");
+    N_PLURAL_EXCEPTIONS.put("Delaware", "Delaware");
+    N_PLURAL_EXCEPTIONS.put("Hopi", "Hopi");
+    N_PLURAL_EXCEPTIONS.put("Iroquois", "Iroquois");
+    N_PLURAL_EXCEPTIONS.put("Kiowa", "Kiowa");
+    N_PLURAL_EXCEPTIONS.put("Navajo", "Navajo");
+    N_PLURAL_EXCEPTIONS.put("Ojibwa", "Ojibwa");
+    N_PLURAL_EXCEPTIONS.put("Sioux", "Sioux");
+    N_PLURAL_EXCEPTIONS.put("Zuni", "Zuni");
 
     // Ending in "y"
-    nPluralExceptions.put("lay-by", "lay-bys");
-    nPluralExceptions.put("stand-by", "stand-bys");
+    N_PLURAL_EXCEPTIONS.put("lay-by", "lay-bys");
+    N_PLURAL_EXCEPTIONS.put("stand-by", "stand-bys");
 
     // Ending in "i"
-    nPluralExceptions.put("alkali", "alkalies");
+    N_PLURAL_EXCEPTIONS.put("alkali", "alkalies");
 
     // Plural ending in "en"
-    nPluralExceptions.put("ox", "oxen");
-    nPluralExceptions.put("child", "children");
+    N_PLURAL_EXCEPTIONS.put("ox", "oxen");
+    N_PLURAL_EXCEPTIONS.put("child", "children");
 
     // Apophonic plurals
-    nPluralExceptions.put("foot", "feet");
-    nPluralExceptions.put("goose", "geese");
-    nPluralExceptions.put("louse", "lice");
-    nPluralExceptions.put("dormouse", "dormice");
-    nPluralExceptions.put("man", "men");
-    nPluralExceptions.put("mouse", "mice");
-    nPluralExceptions.put("tooth", "teeth");
-    nPluralExceptions.put("woman", "women");
+    N_PLURAL_EXCEPTIONS.put("foot", "feet");
+    N_PLURAL_EXCEPTIONS.put("goose", "geese");
+    N_PLURAL_EXCEPTIONS.put("louse", "lice");
+    N_PLURAL_EXCEPTIONS.put("dormouse", "dormice");
+    N_PLURAL_EXCEPTIONS.put("man", "men");
+    N_PLURAL_EXCEPTIONS.put("mouse", "mice");
+    N_PLURAL_EXCEPTIONS.put("tooth", "teeth");
+    N_PLURAL_EXCEPTIONS.put("woman", "women");
 
     // Miscellaneous irregular plurals
-    nPluralExceptions.put("person", "people");
+    N_PLURAL_EXCEPTIONS.put("person", "people");
   }
 
   /**
@@ -1554,13 +1476,13 @@ public final class StringsPlume {
     if (n == 1) {
       return n + " " + noun;
     }
-    String irregular = nPluralExceptions.get(noun);
+    String irregular = N_PLURAL_EXCEPTIONS.get(noun);
     if (irregular != null) {
       return n + " " + irregular;
     }
 
     // TODO: handle more from https://en.wikipedia.org/wiki/English_plurals ,
-    // and organize `nPluralExceptions` and the code the same as it.
+    // and organize `N_PLURAL_EXCEPTIONS` and the code the same as it.
 
     char lastLetter = noun.charAt(noun.length() - 1);
     char penultimateLetter = (noun.length() == 1) ? '\u0000' : noun.charAt(noun.length() - 2);
@@ -1638,11 +1560,11 @@ public final class StringsPlume {
   }
 
   /** Exceptions to the usual English verb pluralization rules. */
-  private static final Map<String, String> vPluralExceptions = new HashMap<>();
+  private static final @Modifiable Map<String, String> V_PLURAL_EXCEPTIONS = new HashMap<>();
 
   static {
-    vPluralExceptions.put("is", "are");
-    vPluralExceptions.put("was", "were");
+    V_PLURAL_EXCEPTIONS.put("is", "are");
+    V_PLURAL_EXCEPTIONS.put("was", "were");
   }
 
   /**
@@ -1661,7 +1583,7 @@ public final class StringsPlume {
     if (n == 1) {
       return verb;
     }
-    return vPluralExceptions.getOrDefault(verb, verb);
+    return V_PLURAL_EXCEPTIONS.getOrDefault(verb, verb);
   }
 
   /**
@@ -1719,9 +1641,9 @@ public final class StringsPlume {
    * <p>Example uses:
    *
    * <pre>{@code
-   * StringsPlume.nvPlural(0, "fox", "was")  =  "0 foxes were"
-   * StringsPlume.nvPlural(1, "fox", "was")  =  "1 fox was"
-   * StringsPlume.nvPlural(2, "fox", "was")  =  "2 foxes were"
+   * StringsP.nvPlural(0, "fox", "was")  =  "0 foxes were"
+   * StringsP.nvPlural(1, "fox", "was")  =  "1 fox was"
+   * StringsP.nvPlural(2, "fox", "was")  =  "2 foxes were"
    * }</pre>
    *
    * @param n count
@@ -1795,7 +1717,7 @@ public final class StringsPlume {
    * @return a conjunction or disjunction string
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
+    "allcheckers:purity.call", // side effect to local state
     "lock:method.guarantee.violated" // needs JDK annotations
   })
   @SideEffectFree
@@ -1916,9 +1838,7 @@ public final class StringsPlume {
    * @return the number of format specifiers in the string
    */
   @SuppressWarnings({
-    "allcheckers:purity.not.sideeffectfree.call", // side effect to local state
-    "allcheckers:purity.not.deterministic.not.sideeffectfree.call", // side effect to local state
-    "allcheckers:purity.not.deterministic.call", // deterministic up to equals, which is sufficient
+    "allcheckers:purity.call", // side effect to local state; deterministic up to equals
     "lock:method.guarantee.violated" // side effect to local state
   })
   @Pure
